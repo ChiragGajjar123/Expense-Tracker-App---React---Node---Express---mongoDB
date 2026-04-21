@@ -2,12 +2,22 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell 
 } from 'recharts';
-import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, PieChart as PieChartIcon } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { format, subDays } from 'date-fns';
+import { useState, useEffect } from 'react';
 
 const Dashboard = () => {
   const { transactions, categories, totalBalance, totalIncome, totalExpenses } = useAppContext();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    // Small delay to ensure layout has stabilized
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Prepare data for Category breakdown
   const categoryData = categories
@@ -82,9 +92,10 @@ const Dashboard = () => {
         {/* Weekly Activity */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h4 className="text-lg font-bold text-gray-900 mb-6">Weekly Activity</h4>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={last7Days}>
+          <div className="h-[320px] w-full min-w-[300px]">
+            {isMounted && (
+              <ResponsiveContainer width="100%" height={320} minWidth={0} minHeight={0} debounce={100}>
+                <BarChart data={last7Days}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
@@ -96,15 +107,16 @@ const Dashboard = () => {
                 <Bar dataKey="expenses" fill="#EF4444" radius={[4, 4, 0, 0]} name="Expenses" />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          )}
         </div>
+      </div>
 
         {/* Expense Breakdown */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h4 className="text-lg font-bold text-gray-900 mb-6">Expense Breakdown</h4>
-          <div className="h-80">
-            {categoryData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[320px] w-full min-w-[300px]">
+            {isMounted && categoryData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={320} minWidth={0} minHeight={0} debounce={100}>
                 <PieChart>
                   <Pie
                     data={categoryData}
@@ -124,12 +136,12 @@ const Dashboard = () => {
                   />
                 </PieChart>
               </ResponsiveContainer>
-            ) : (
+            ) : isMounted && categoryData.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                <PieChart className="w-12 h-12 mb-2 opacity-20" />
+                <PieChartIcon className="w-12 h-12 mb-2 opacity-20" />
                 <p>No expense data to display</p>
               </div>
-            )}
+            ) : null}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {categoryData.slice(0, 4).map((item) => (

@@ -1,17 +1,18 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Transaction, BudgetInfo, Category } from '../appTypes';
-import { storage } from '../utils/storage';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
+
+const API_URL = 'http://localhost:5000/api';
 
 interface AppContextType {
   transactions: Transaction[];
   budgets: BudgetInfo[];
   categories: Category[];
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
-  updateTransaction: (transaction: Transaction) => void;
-  deleteTransaction: (id: string) => void;
-  updateBudget: (budget: BudgetInfo) => void;
+  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  updateTransaction: (transaction: Transaction) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
+  updateBudget: (budget: BudgetInfo) => Promise<void>;
   totalBalance: number;
   totalIncome: number;
   totalExpenses: number;
@@ -20,78 +21,82 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const stored = storage.getTransactions();
-    if (stored.length > 0) return stored;
-    
-    const initialTransactions: Transaction[] = [
-      {
-        id: '1',
-        title: 'Monthly Salary',
-        amount: 5000,
-        type: 'income',
-        categoryId: '9',
-        date: new Date().toISOString().split('T')[0],
-        note: 'Regular salary'
-      },
-      {
-        id: '2',
-        title: 'Grocery Shopping',
-        amount: 150.50,
-        type: 'expense',
-        categoryId: '1',
-        date: new Date().toISOString().split('T')[0],
-        note: 'Weekly groceries'
-      },
-      {
-        id: '3',
-        title: 'Netflix Subscription',
-        amount: 15.99,
-        type: 'expense',
-        categoryId: '4',
-        date: new Date().toISOString().split('T')[0]
-      }
-    ];
-    storage.saveTransactions(initialTransactions);
-    return initialTransactions;
-  });
-
-  const [budgets, setBudgets] = useState<BudgetInfo[]>(() => storage.getBudgets());
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<BudgetInfo[]>([]);
   const [categories] = useState<Category[]>(DEFAULT_CATEGORIES);
 
-  // No longer need the initialization useEffect since we use state initializers
-  
-  const addTransaction = (newTransaction: Omit<Transaction, 'id'>) => {
-    const transaction = { ...newTransaction, id: crypto.randomUUID() };
-    const updated = [transaction, ...transactions];
-    setTransactions(updated);
-    storage.saveTransactions(updated);
-  };
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [transRes, budgetRes] = await Promise.all([
+          fetch(`${API_URL}/transactions`),
+          fetch(`${API_URL}/budgets`)
+        ]);
+        const transData = await transRes.json();
+        const budgetData = await budgetRes.json();
+        setTransactions(transData);
+        setBudgets(budgetData);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      }
+    };
+    fetchData();
+  }, []);
 
-  const updateTransaction = (updatedTransaction: Transaction) => {
-    const updated = transactions.map((t) => 
-      t.id === updatedTransaction.id ? updatedTransaction : t
-    );
-    setTransactions(updated);
-    storage.saveTransactions(updated);
-  };
-
-  const deleteTransaction = (id: string) => {
-    const updated = transactions.filter((t) => t.id !== id);
-    setTransactions(updated);
-    storage.saveTransactions(updated);
-  };
-
-  const updateBudget = (newBudget: BudgetInfo) => {
-    const exists = budgets.find(b => b.categoryId === newBudget.categoryId);
-    let updated;
-    if (exists) {
-      updated = budgets.map(b => b.categoryId === newBudget.categoryId ? newBudget : b);
-    } else {
-      updated = [...budgets, newBudget];
+  const addTransaction = async (newTransaction: Omit<Transaction, 'id'>) => {
+    try {
+      const res = await fetch(`${API_URL}/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTransaction)
+      });
+      const data = await res.json();
+      setTransactions([data, ...transactions]);
+    } catch (err) {
+      console.error('Error adding transaction:', err);
     }
-    setBudgets(updated);
-    storage.saveBudgets(updated);
+  };
+
+  const updateTransaction = async (updatedTransaction: Transaction) => {
+    try {
+      const res = await fetch(`${API_URL}/transactions/${updatedTransaction.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedTransaction)
+      });
+      const data = await res.json();
+      setTransactions(transactions.map((t) => (t.id === data.id ? data : t)));
+    } catch (err) {
+      console.error('Error updating transaction:', err);
+    }
+  };
+
+  const deleteTransaction = async (id: string) => {
+    try {
+      await fetch(`${API_URL}/transactions/${id}`, { method: 'DELETE' });
+      setTransactions(transactions.filter((t) => t.id !== id));
+    } catch (err) {
+      console.error('Error deleting transaction:', err);
+    }
+  };
+
+  const updateBudget = async (newBudget: BudgetInfo) => {
+    try {
+      const res = await fetch(`${API_URL}/budgets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newBudget)
+      });
+      const data = await res.json();
+      const exists = budgets.find(b => b.categoryId === data.categoryId);
+      if (exists) {
+        setBudgets(budgets.map(b => b.categoryId === data.categoryId ? data : b));
+      } else {
+        setBudgets([...budgets, data]);
+      }
+    } catch (err) {
+      console.error('Error updating budget:', err);
+    }
   };
 
   const totalIncome = transactions
