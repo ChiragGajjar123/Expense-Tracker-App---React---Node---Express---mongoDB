@@ -67,36 +67,36 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 md:p-8 pb-24">
           <div className="max-w-5xl mx-auto">
             {children}
           </div>
         </div>
 
         {/* Mobile Nav */}
-        <nav className="md:hidden bg-white border-t border-gray-200 p-2 flex justify-around items-center sticky bottom-0 z-10">
+        <nav className="md:hidden bg-white border-t border-gray-200 p-2 flex justify-around items-center sticky bottom-0 z-30">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center gap-1 p-2 rounded-lg cursor-pointer ${
+              className={`flex flex-col items-center gap-1 px-1 py-2 rounded-lg cursor-pointer ${
                 activeTab === item.id ? 'text-blue-600' : 'text-gray-500'
               }`}
             >
               <item.icon className="w-5 h-5" />
-              <span className="text-xs font-medium">{item.label}</span>
+              <span className="text-[10px] sm:text-xs font-medium">{item.label}</span>
             </button>
           ))}
         </nav>
 
         {/* Floating Add Button for Mobile */}
-        <div className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-20">
+        <div className="md:hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-40">
           <button
             onClick={onAddClick}
-            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold transition-all shadow-lg shadow-blue-300 cursor-pointer"
+            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold transition-all shadow-lg shadow-blue-300 cursor-pointer active:scale-95"
           >
             <PlusCircle className="w-5 h-5" />
-            <span>Add</span>
+            <span className="text-sm">Add</span>
           </button>
         </div>
       </main>

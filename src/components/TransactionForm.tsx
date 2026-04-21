@@ -62,25 +62,25 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
   const filteredCategories = categories.filter(c => c.type === formData.type);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 flex-shrink-0">
-          <h3 className="text-xl font-bold text-gray-900">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[95vh] sm:max-h-[90vh] shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom sm:zoom-in duration-300">
+        <div className="px-5 py-4 sm:px-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 flex-shrink-0">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">
             {editingTransaction ? 'Edit Transaction' : 'New Transaction'}
           </h3>
           <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors cursor-pointer">
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="p-6 space-y-6 overflow-y-auto flex-1">
+          <div className="p-5 sm:p-6 space-y-5 sm:space-y-6 overflow-y-auto flex-1 custom-scrollbar">
             {/* Type Toggle */}
             <div className="flex bg-gray-100 p-1 rounded-2xl">
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, type: 'expense', categoryId: '' })}
-                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                className={`flex-1 py-2.5 sm:py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                   formData.type === 'expense' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500'
                 }`}
               >
@@ -89,7 +89,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, type: 'income', categoryId: '' })}
-                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                className={`flex-1 py-2.5 sm:py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                   formData.type === 'income' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500'
                 }`}
               >
@@ -109,7 +109,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                     placeholder="0.00"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg font-semibold"
+                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg font-bold"
                   />
                 </div>
               </div>
@@ -124,12 +124,12 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                     placeholder="What was this for?"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm sm:text-base"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Category</label>
                   <div className="relative" ref={categoryRef}>
@@ -138,15 +138,15 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                       onClick={() => setIsCategoryOpen(!isCategoryOpen)}
                       className="w-full pl-11 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-left flex items-center justify-between cursor-pointer"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 overflow-hidden">
                         <Tag className="w-5 h-5 absolute left-4 text-gray-400 pointer-events-none" />
-                        <span className={formData.categoryId ? 'text-gray-900' : 'text-gray-400'}>
+                        <span className={`text-sm truncate ${formData.categoryId ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
                           {formData.categoryId 
                             ? categories.find(c => c.id === formData.categoryId)?.name 
-                            : 'Select Category'}
+                            : 'Select'}
                         </span>
                       </div>
-                      <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${isCategoryOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isCategoryOpen && (
@@ -162,10 +162,10 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                             className="w-full px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 transition-colors cursor-pointer"
                           >
                             <div 
-                              className="w-3 h-3 rounded-full" 
+                              className="w-3 h-3 rounded-full flex-shrink-0" 
                               style={{ backgroundColor: cat.color }}
                             />
-                            <span className={`text-sm ${formData.categoryId === cat.id ? 'font-bold text-blue-600' : 'text-gray-700'}`}>
+                            <span className={`text-sm truncate ${formData.categoryId === cat.id ? 'font-bold text-blue-600' : 'text-gray-700'}`}>
                               {cat.name}
                             </span>
                           </button>
@@ -184,7 +184,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                       type="date"
                       value={formData.date}
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                      className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                      className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer text-sm"
                     />
                   </div>
                 </div>
@@ -196,16 +196,16 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                   placeholder="Add more details..."
                   value={formData.note}
                   onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all h-24 resize-none"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all h-20 sm:h-24 resize-none text-sm"
                 />
               </div>
             </div>
           </div>
 
-          <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
+          <div className="p-5 sm:p-6 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
             <button
               type="submit"
-              className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-[0.98] cursor-pointer ${
+              className={`w-full py-3.5 sm:py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-[0.98] cursor-pointer ${
                 formData.type === 'expense' 
                   ? 'bg-red-600 hover:bg-red-700 shadow-red-100' 
                   : 'bg-green-600 hover:bg-green-700 shadow-green-100'

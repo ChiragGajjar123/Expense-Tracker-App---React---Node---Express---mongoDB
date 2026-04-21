@@ -50,39 +50,39 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-              <Wallet className="w-6 h-6" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex-1 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3 bg-blue-50 rounded-xl text-blue-600 flex-shrink-0">
+              <Wallet className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Balance</p>
-              <h3 className="text-2xl font-bold text-gray-900">${totalBalance.toLocaleString()}</h3>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-50 rounded-xl text-green-600">
-              <TrendingUp className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Income</p>
-              <h3 className="text-2xl font-bold text-gray-900 text-green-600">+${totalIncome.toLocaleString()}</h3>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Balance</p>
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">${totalBalance.toLocaleString()}</h3>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-red-50 rounded-xl text-red-600">
-              <TrendingDown className="w-6 h-6" />
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex-1 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3 bg-green-50 rounded-xl text-green-600 flex-shrink-0">
+              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Expenses</p>
-              <h3 className="text-2xl font-bold text-gray-900 text-red-600">-${totalExpenses.toLocaleString()}</h3>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Income</p>
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 text-green-600 truncate">+${totalIncome.toLocaleString()}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex-1 min-w-0 sm:col-span-2 lg:col-span-1">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3 bg-red-50 rounded-xl text-red-600 flex-shrink-0">
+              <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Expenses</p>
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 text-red-600 truncate">-${totalExpenses.toLocaleString()}</h3>
             </div>
           </div>
         </div>
@@ -90,15 +90,26 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Weekly Activity */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <h4 className="text-lg font-bold text-gray-900 mb-6">Weekly Activity</h4>
-          <div className="h-[320px] w-full min-w-[300px]">
+          <div className="h-[320px] w-full">
             {isMounted && (
               <ResponsiveContainer width="100%" height={320} minWidth={0} minHeight={0} debounce={100}>
                 <BarChart data={last7Days}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fill: '#9CA3AF', fontSize: 10}}
+                  interval={0}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fill: '#9CA3AF', fontSize: 10}}
+                  width={30}
+                />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   cursor={{ fill: '#F9FAFB' }}
@@ -112,9 +123,9 @@ const Dashboard = () => {
       </div>
 
         {/* Expense Breakdown */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <h4 className="text-lg font-bold text-gray-900 mb-6">Expense Breakdown</h4>
-          <div className="h-[320px] w-full min-w-[300px]">
+          <div className="h-[320px] w-full">
             {isMounted && categoryData.length > 0 ? (
               <ResponsiveContainer width="100%" height={320} minWidth={0} minHeight={0} debounce={100}>
                 <PieChart>
@@ -123,7 +134,7 @@ const Dashboard = () => {
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
-                    outerRadius={100}
+                    outerRadius={80}
                     paddingAngle={5}
                     dataKey="value"
                   >
