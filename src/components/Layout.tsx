@@ -17,7 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+    <div className="h-full bg-gray-50 flex flex-col md:flex-row overflow-hidden">
       {/* Sidebar for Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200">
         <div className="p-6 flex items-center gap-3">
@@ -65,12 +65,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
             </div>
             <h1 className="text-lg font-bold text-gray-900">Expensy</h1>
           </div>
-          <button
-            onClick={onAddClick}
-            className="bg-blue-600 p-2 rounded-full text-white shadow-md cursor-pointer"
-          >
-            <PlusCircle className="w-5 h-5" />
-          </button>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
@@ -94,6 +88,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
             </button>
           ))}
         </nav>
+
+        {/* Floating Add Button for Mobile */}
+        <div className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-20">
+          <button
+            onClick={onAddClick}
+            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold transition-all shadow-lg shadow-blue-300 cursor-pointer"
+          >
+            <PlusCircle className="w-5 h-5" />
+            <span>Add</span>
+          </button>
+        </div>
       </main>
     </div>
   );

@@ -22,8 +22,8 @@ function App() {
   };
 
   return (
-    <Layout 
-      activeTab={activeTab} 
+    <Layout
+      activeTab={activeTab}
       setActiveTab={setActiveTab}
       onAddClick={() => setIsFormOpen(true)}
     >
@@ -38,8 +38,8 @@ function App() {
       )}
 
       {isFormOpen && (
-        <TransactionForm 
-          onClose={handleCloseForm} 
+        <TransactionForm
+          onClose={handleCloseForm}
           editingTransaction={editingTransaction}
         />
       )}
