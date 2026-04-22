@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { Transaction, BudgetInfo, Category } from '../appTypes';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = '/api';
 
 interface AppContextType {
   transactions: Transaction[];
