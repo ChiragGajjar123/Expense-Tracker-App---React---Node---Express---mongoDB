@@ -20,17 +20,31 @@ app.use((req, res, next) => {
   next();
 });
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
+// --- Serverless MongoDB Connection ---
+let isConnected = false;
+
+const connectDB = async () => {
+  if (isConnected) {
+    console.log('Using existing MongoDB connection');
+    return;
+  }
+  try {
+    const db = await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000, // Don't wait 10s if it's going to fail
+    });
+    isConnected = db.connections[0].readyState === 1;
     console.log('Successfully connected to MongoDB');
-    console.log(`Database URI: ${process.env.MONGODB_URI}`);
-  })
-  .catch((err) => {
-    console.error('MongoDB connection error. Please make sure MongoDB is running!');
-    console.error(`Attempted URI: ${process.env.MONGODB_URI}`);
-    console.error(err.message);
-  });
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+  }
+};
+
+// Add middleware to ensure DB connects before any route runs
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
+// -------------------------------------
 
 // Auth Routes (public)
 app.use('/api/auth', authRoutes);
