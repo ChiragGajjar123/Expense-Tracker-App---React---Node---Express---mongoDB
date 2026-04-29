@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { 
   Search, ArrowUpRight, ArrowDownLeft, Trash2, Edit2, 
   Utensils, Car, ShoppingBag, Film, Heart, Plane, BookOpen, 
-  Receipt, Briefcase, Laptop, TrendingUp, Gift, PlusCircle
+  Receipt, Briefcase, Laptop, TrendingUp, Gift, PlusCircle, Loader2
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
@@ -18,6 +18,16 @@ const TransactionList = ({ onEdit }: { onEdit: (t: Transaction) => void }) => {
   const { transactions, categories, deleteTransaction } = useAppContext();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await deleteTransaction(id);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filteredTransactions = transactions
     .filter(t => {
@@ -103,10 +113,11 @@ const TransactionList = ({ onEdit }: { onEdit: (t: Transaction) => void }) => {
                         <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                       <button 
-                        onClick={() => deleteTransaction(t.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer active:bg-red-100"
+                        onClick={() => handleDelete(t.id)}
+                        disabled={deletingId === t.id}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer active:bg-red-100 disabled:opacity-50"
                       >
-                        <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        {deletingId === t.id ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                       </button>
                     </div>
                   </div>

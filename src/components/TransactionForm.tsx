@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Calendar, Tag, Info, DollarSign, ChevronDown } from 'lucide-react';
+import { X, Calendar, Tag, Info, DollarSign, ChevronDown, Loader2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import type { Transaction } from '../appTypes';
 
@@ -11,6 +11,7 @@ interface TransactionFormProps {
 const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) => {
   const { categories, addTransaction, updateTransaction } = useAppContext();
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const categoryRef = useRef<HTMLDivElement>(null);
   
   const [formData, setFormData] = useState(() => {
@@ -44,19 +45,24 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const data = {
       ...formData,
       amount: parseFloat(formData.amount),
     };
 
-    if (editingTransaction) {
-      updateTransaction({ ...data, id: editingTransaction.id });
-    } else {
-      addTransaction(data);
+    setIsSubmitting(true);
+    try {
+      if (editingTransaction) {
+        await updateTransaction({ ...data, id: editingTransaction.id });
+      } else {
+        await addTransaction(data);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
   const filteredCategories = categories.filter(c => c.type === formData.type);
@@ -205,12 +211,14 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
           <div className="p-5 sm:p-6 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
             <button
               type="submit"
-              className={`w-full py-3.5 sm:py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-[0.98] cursor-pointer ${
+              disabled={isSubmitting}
+              className={`w-full flex items-center justify-center gap-2 py-3.5 sm:py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed ${
                 formData.type === 'expense' 
                   ? 'bg-red-600 hover:bg-red-700 shadow-red-100' 
                   : 'bg-green-600 hover:bg-green-700 shadow-green-100'
               }`}
             >
+              {isSubmitting && <Loader2 className="w-5 h-5 animate-spin" />}
               {editingTransaction ? 'Update' : 'Save'} Transaction
             </button>
           </div>

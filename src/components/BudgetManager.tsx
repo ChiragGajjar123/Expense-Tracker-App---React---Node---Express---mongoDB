@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Target, AlertCircle, Plus, ChevronDown } from 'lucide-react';
+import { Target, AlertCircle, Plus, ChevronDown, Loader2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
@@ -8,6 +8,7 @@ const BudgetManager: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [amount, setAmount] = useState('');
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const categoryRef = useRef<HTMLDivElement>(null);
 
   const expenseCategories = categories.filter(c => c.type === 'expense');
@@ -42,16 +43,22 @@ const BudgetManager: React.FC = () => {
     return { budget, spent, percentage, isOver };
   };
 
-  const handleSetBudget = (e: React.FormEvent) => {
+  const handleSetBudget = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCategory || !amount) return;
-    updateBudget({
-      categoryId: selectedCategory,
-      amount: parseFloat(amount),
-      period: 'monthly'
-    });
-    setSelectedCategory('');
-    setAmount('');
+    
+    setIsSubmitting(true);
+    try {
+      await updateBudget({
+        categoryId: selectedCategory,
+        amount: parseFloat(amount),
+        period: 'monthly'
+      });
+      setSelectedCategory('');
+      setAmount('');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -123,10 +130,11 @@ const BudgetManager: React.FC = () => {
               </div>
               <button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                disabled={isSubmitting}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
               >
-                <Plus className="w-5 h-5" />
-                Set Budget
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                {isSubmitting ? 'Setting...' : 'Set Budget'}
               </button>
             </form>
           </div>
