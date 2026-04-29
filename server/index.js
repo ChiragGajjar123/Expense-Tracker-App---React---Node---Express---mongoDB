@@ -4,6 +4,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import Transaction from './models/Transaction.js';
 import Budget from './models/Budget.js';
+import authRoutes from './routes/auth.js';
+import auth from './middleware/auth.js';
 
 dotenv.config();
 
@@ -30,18 +32,23 @@ mongoose.connect(process.env.MONGODB_URI)
     console.error(err.message);
   });
 
+// Auth Routes (public)
+app.use('/api/auth', authRoutes);
+
+// ========== Protected Routes (require auth) ==========
+
 // Transaction Routes
-app.get('/api/transactions', async (req, res) => {
+app.get('/api/transactions', auth, async (req, res) => {
   try {
-    const transactions = await Transaction.find().sort({ date: -1 });
+    const transactions = await Transaction.find({ userId: req.userId }).sort({ date: -1 });
     res.json(transactions);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-app.post('/api/transactions', async (req, res) => {
-  const transaction = new Transaction(req.body);
+app.post('/api/transactions', auth, async (req, res) => {
+  const transaction = new Transaction({ ...req.body, userId: req.userId });
   try {
     const newTransaction = await transaction.save();
     res.status(201).json(newTransaction);
@@ -50,19 +57,29 @@ app.post('/api/transactions', async (req, res) => {
   }
 });
 
-app.put('/api/transactions/:id', async (req, res) => {
+app.put('/api/transactions/:id', auth, async (req, res) => {
   try {
     const { id, ...updateData } = req.body;
-    const updatedTransaction = await Transaction.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const updatedTransaction = await Transaction.findOneAndUpdate(
+      { _id: req.params.id, userId: req.userId },
+      updateData,
+      { new: true }
+    );
+    if (!updatedTransaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
     res.json(updatedTransaction);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 });
 
-app.delete('/api/transactions/:id', async (req, res) => {
+app.delete('/api/transactions/:id', auth, async (req, res) => {
   try {
-    await Transaction.findByIdAndDelete(req.params.id);
+    const result = await Transaction.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    if (!result) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
     res.json({ message: 'Transaction deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -70,20 +87,20 @@ app.delete('/api/transactions/:id', async (req, res) => {
 });
 
 // Budget Routes
-app.get('/api/budgets', async (req, res) => {
+app.get('/api/budgets', auth, async (req, res) => {
   try {
-    const budgets = await Budget.find();
+    const budgets = await Budget.find({ userId: req.userId });
     res.json(budgets);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-app.post('/api/budgets', async (req, res) => {
+app.post('/api/budgets', auth, async (req, res) => {
   try {
     const { categoryId, amount } = req.body;
     const budget = await Budget.findOneAndUpdate(
-      { categoryId },
+      { categoryId, userId: req.userId },
       { amount },
       { upsert: true, new: true }
     );

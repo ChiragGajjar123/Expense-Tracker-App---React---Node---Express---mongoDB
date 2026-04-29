@@ -1,5 +1,6 @@
 import React from 'react';
-import { Wallet, PieChart, List, Settings, PlusCircle } from 'lucide-react';
+import { Wallet, PieChart, List, Settings, PlusCircle, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +10,8 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAddClick }) => {
+  const { user, logout } = useAuth();
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: PieChart },
     { id: 'transactions', label: 'Transactions', icon: List },
@@ -44,7 +47,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4">
           <button
             onClick={onAddClick}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition-all shadow-lg shadow-blue-200 cursor-pointer"
@@ -52,6 +55,26 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
             <PlusCircle className="w-5 h-5" />
             Add Transaction
           </button>
+        </div>
+
+        {/* User Profile Section in Sidebar */}
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+              <p className="text-[11px] text-gray-400 truncate">{user?.email}</p>
+            </div>
+            <button
+              onClick={logout}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer flex-shrink-0"
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -64,6 +87,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAd
               <Wallet className="text-white w-5 h-5" />
             </div>
             <h1 className="text-lg font-bold text-gray-900">Expensy</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
           </div>
         </header>
 
