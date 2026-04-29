@@ -29,11 +29,11 @@ const TransactionList = ({ onEdit }: { onEdit: (t: Transaction) => void }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 px-1">Transactions</h2>
         
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+          <div className="relative flex-1 sm:w-64">
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -44,7 +44,7 @@ const TransactionList = ({ onEdit }: { onEdit: (t: Transaction) => void }) => {
             />
           </div>
           
-          <div className="flex bg-gray-100 p-1 rounded-xl overflow-x-auto no-scrollbar">
+          <div className="flex bg-gray-100 p-1 rounded-xl flex-shrink-0">
             {(['all', 'income', 'expense'] as const).map((f) => (
               <button
                 key={f}
