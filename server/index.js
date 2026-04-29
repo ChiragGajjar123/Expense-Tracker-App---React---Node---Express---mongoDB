@@ -101,11 +101,12 @@ app.post('/api/budgets', auth, async (req, res) => {
     const { categoryId, amount } = req.body;
     const budget = await Budget.findOneAndUpdate(
       { categoryId, userId: req.userId },
-      { amount },
-      { upsert: true, new: true }
+      { $set: { amount } },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, runValidators: true }
     );
     res.json(budget);
   } catch (err) {
+    console.error("Budget update error:", err);
     res.status(400).json({ message: err.message });
   }
 });
