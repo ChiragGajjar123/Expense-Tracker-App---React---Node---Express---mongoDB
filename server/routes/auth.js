@@ -255,10 +255,12 @@ router.post('/forgot-password', async (req, res) => {
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey || resendApiKey === 're_your_api_key_here') {
       console.warn('RESEND_API_KEY is not configured. Falling back to console logging the reset token.');
-      console.log(`[PASSWORD RESET TOKEN FOR ${email}]: http://localhost:5173/?resetToken=${token}`);
+      const clientUrl = process.env.CLIENT_URL || req.headers.origin || 'http://localhost:5173';
+      console.log(`[PASSWORD RESET TOKEN FOR ${email}]: ${clientUrl}/?resetToken=${token}`);
     } else {
       const resend = new Resend(resendApiKey);
-      const resetLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/?resetToken=${token}`;
+      const clientUrl = process.env.CLIENT_URL || req.headers.origin || 'http://localhost:5173';
+      const resetLink = `${clientUrl}/?resetToken=${token}`;
       
       await resend.emails.send({
         from: 'Expensy <onboarding@resend.dev>',
