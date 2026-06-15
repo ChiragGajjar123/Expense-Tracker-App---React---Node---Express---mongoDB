@@ -1,5 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { Resend } from 'resend';
 import User from '../models/User.js';
 import auth from '../middleware/auth.js';
 
@@ -228,6 +230,100 @@ router.delete('/account', auth, async (req, res) => {
     res.json({ message: 'Account deleted successfully.' });
   } catch (err) {
     console.error('Delete account error:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required.' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(200).json({ message: 'If an account is associated with this email, a reset link has been sent.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = token;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    await user.save();
+
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (!resendApiKey || resendApiKey === 're_your_api_key_here') {
+      console.warn('RESEND_API_KEY is not configured. Falling back to console logging the reset token.');
+      console.log(`[PASSWORD RESET TOKEN FOR ${email}]: http://localhost:5173/?resetToken=${token}`);
+    } else {
+      const resend = new Resend(resendApiKey);
+      const resetLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/?resetToken=${token}`;
+      
+      await resend.emails.send({
+        from: 'Expensy <onboarding@resend.dev>',
+        to: [email],
+        subject: 'Reset Password - Expensy',
+        html: `
+          <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <h2 style="color: #2563eb; margin-bottom: 20px;">Reset Your Password</h2>
+            <p>You requested to reset your password for your Expensy account. Click the button below to complete the request:</p>
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${resetLink}" style="background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Reset Password</a>
+            </div>
+            <p style="font-size: 12px; color: #64748b;">This link will expire in 1 hour. If you did not make this request, please ignore this email.</p>
+          </div>
+        `
+      });
+    }
+
+    res.json({ message: 'If an account is associated with this email, a reset link has been sent.' });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'Token and new password are required.' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters.' });
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Password reset token is invalid or has expired.' });
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = '';
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    const authToken = generateToken(user._id);
+    setAuthCookie(res, authToken);
+
+    res.json({
+      message: 'Password has been reset successfully.',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        currency: user.currency
+      }
+    });
+  } catch (err) {
+    console.error('Reset password error:', err);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });

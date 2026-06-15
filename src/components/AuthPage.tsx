@@ -7,8 +7,13 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 const AuthPage = () => {
-  const { login, register } = useAuth();
+  const { login, register, forgotPassword, resetPassword } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('resetToken');
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,33 +42,70 @@ const AuthPage = () => {
     setShowConfirmPassword(false);
   };
 
+  const clearResetUrl = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('resetToken');
+    window.history.replaceState({}, document.title, url.pathname);
+    setResetToken(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
-    if (!isLogin && formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      if (isLogin) {
-        const result = await login(formData.email, formData.password);
-        if (!result.success) {
-          setError(result.message || 'Login failed.');
+      if (resetToken) {
+        if (formData.password !== formData.confirmPassword) {
+          setError('Passwords do not match.');
+          setIsSubmitting(false);
+          return;
+        }
+        if (formData.password.length < 8) {
+          setError('Password must be at least 8 characters.');
+          setIsSubmitting(false);
+          return;
+        }
+        const result = await resetPassword(resetToken, formData.password);
+        if (result.success) {
+          setSuccess('Password reset successfully. Logging you in...');
+          setTimeout(() => {
+            clearResetUrl();
+          }, 1500);
+        } else {
+          setError(result.message || 'Failed to reset password.');
+        }
+      } else if (isForgotPassword) {
+        const result = await forgotPassword(formData.email);
+        if (result.success) {
+          setSuccess(result.message || 'Reset link sent to your email.');
+        } else {
+          setError(result.message || 'Failed to send reset link.');
         }
       } else {
-        const result = await register(formData.name, formData.email, formData.password);
-        if (!result.success) {
-          setError(result.message || 'Registration failed.');
+        if (!isLogin && formData.password !== formData.confirmPassword) {
+          setError('Passwords do not match.');
+          setIsSubmitting(false);
+          return;
+        }
+        if (!isLogin && formData.password.length < 8) {
+          setError('Password must be at least 8 characters.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (isLogin) {
+          const result = await login(formData.email, formData.password);
+          if (!result.success) {
+            setError(result.message || 'Login failed.');
+          }
+        } else {
+          const result = await register(formData.name, formData.email, formData.password);
+          if (!result.success) {
+            setError(result.message || 'Registration failed.');
+          }
         }
       }
     } catch {
@@ -136,26 +178,31 @@ const AuthPage = () => {
             <h1 className="text-2xl font-black text-white tracking-tight">Expensy</h1>
           </div>
 
-          {/* Form Card */}
-          <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/20">
+          {/* Form Card */}          <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/20">
             <div className="text-center mb-8">
               <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                {isLogin ? 'Welcome back' : 'Create account'}
+                {resetToken ? 'Reset Password' : isForgotPassword ? 'Forgot Password' : isLogin ? 'Welcome back' : 'Create account'}
               </h3>
               <p className="text-blue-200/50 text-sm sm:text-base">
-                {isLogin ? 'Sign in to continue managing your finances' : 'Start your journey to financial freedom'}
+                {resetToken 
+                  ? 'Enter a new secure password for your account' 
+                  : isForgotPassword 
+                  ? 'Enter your email to receive a password reset link' 
+                  : isLogin 
+                  ? 'Sign in to continue managing your finances' 
+                  : 'Start your journey to financial freedom'}
               </p>
             </div>
 
             {/* Error / Success messages */}
             {error && (
-              <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/20 text-red-300 px-4 py-3 rounded-xl text-sm animate-in fade-in slide-in-from-top-2 duration-300" id="auth-error">
+              <div className="mb-6 flex items-center gap-3 bg-red-50/10 border border-red-50/20 text-red-300 px-4 py-3 rounded-xl text-sm animate-in fade-in slide-in-from-top-2 duration-300" id="auth-error">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{error}</span>
               </div>
             )}
             {success && (
-              <div className="mb-6 flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 px-4 py-3 rounded-xl text-sm animate-in fade-in slide-in-from-top-2 duration-300" id="auth-success">
+              <div className="mb-6 flex items-center gap-3 bg-emerald-50/10 border border-emerald-50/20 text-emerald-300 px-4 py-3 rounded-xl text-sm animate-in fade-in slide-in-from-top-2 duration-300" id="auth-success">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                 <span>{success}</span>
               </div>
@@ -163,7 +210,7 @@ const AuthPage = () => {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Name field — register only */}
-              {!isLogin && (
+              {!resetToken && !isForgotPassword && !isLogin && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                   <label className="block text-sm font-medium text-blue-200/70 mb-2">Full Name</label>
                   <div className="relative">
@@ -183,97 +230,112 @@ const AuthPage = () => {
               )}
 
               {/* Email */}
-              <div>
-                <label className="block text-sm font-medium text-blue-200/70 mb-2">Email Address</label>
-                <div className="relative">
-                  <Mail className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/30" />
-                  <input
-                    id="auth-email"
-                    name="email"
-                    type="email"
-                    required
-                    placeholder="you@example.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-200/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm sm:text-base"
-                  />
+              {!resetToken && (
+                <div>
+                  <label className="block text-sm font-medium text-blue-200/70 mb-2">Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/30" />
+                    <input
+                      id="auth-email"
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="you@example.com"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-200/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm sm:text-base"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Password */}
-              <div>
-                <label className="block text-sm font-medium text-blue-200/70 mb-2">Password</label>
-                <div className="relative">
-                  <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/30" />
-                  <input
-                    id="auth-password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-200/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm sm:text-base"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300/30 hover:text-blue-300/60 transition-colors cursor-pointer"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-                {!isLogin && formData.password.length > 0 && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          formData.password.length < 8
-                            ? 'bg-red-500 w-1/4'
-                            : formData.password.length < 10
-                            ? 'bg-yellow-500 w-1/2'
-                            : formData.password.length < 12
-                            ? 'bg-blue-500 w-3/4'
-                            : 'bg-emerald-500 w-full'
-                        }`}
-                        style={{
-                          width:
-                            formData.password.length < 8
-                              ? '25%'
-                              : formData.password.length < 10
-                              ? '50%'
-                              : formData.password.length < 12
-                              ? '75%'
-                              : '100%'
-                        }}
-                      />
-                    </div>
-                    <span
-                      className={`text-xs font-medium ${
-                        formData.password.length < 8
-                          ? 'text-red-400'
-                          : formData.password.length < 10
-                          ? 'text-yellow-400'
-                          : formData.password.length < 12
-                          ? 'text-blue-400'
-                          : 'text-emerald-400'
-                      }`}
-                    >
-                      {formData.password.length < 8
-                        ? 'Weak'
-                        : formData.password.length < 10
-                        ? 'Fair'
-                        : formData.password.length < 12
-                        ? 'Good'
-                        : 'Strong'}
-                    </span>
+              {!isForgotPassword && (
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-blue-200/70">Password</label>
+                    {isLogin && !isForgotPassword && !resetToken && (
+                      <button
+                        type="button"
+                        onClick={() => { setIsForgotPassword(true); setError(''); setSuccess(''); }}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer font-medium"
+                      >
+                        Forgot Password?
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
+                  <div className="relative">
+                    <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/30" />
+                    <input
+                      id="auth-password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-200/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm sm:text-base"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300/30 hover:text-blue-300/60 transition-colors cursor-pointer"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  {!isLogin && !isForgotPassword && formData.password.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            formData.password.length < 8
+                              ? 'bg-red-500 w-1/4'
+                              : formData.password.length < 10
+                              ? 'bg-yellow-500 w-1/2'
+                              : formData.password.length < 12
+                              ? 'bg-blue-500 w-3/4'
+                              : 'bg-emerald-500 w-full'
+                          }`}
+                          style={{
+                            width:
+                              formData.password.length < 8
+                                ? '25%'
+                                : formData.password.length < 10
+                                ? '50%'
+                                : formData.password.length < 12
+                                ? '75%'
+                                : '100%'
+                          }}
+                        />
+                      </div>
+                      <span
+                        className={`text-xs font-medium ${
+                          formData.password.length < 8
+                            ? 'text-red-400'
+                            : formData.password.length < 10
+                            ? 'text-yellow-400'
+                            : formData.password.length < 12
+                            ? 'text-blue-400'
+                            : 'text-emerald-400'
+                        }`}
+                      >
+                        {formData.password.length < 8
+                          ? 'Weak'
+                          : formData.password.length < 10
+                          ? 'Fair'
+                          : formData.password.length < 12
+                          ? 'Good'
+                          : 'Strong'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
-              {/* Confirm Password — register only */}
-              {!isLogin && (
+              {/* Confirm Password */}
+              {(!isLogin || !!resetToken) && !isForgotPassword && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                   <label className="block text-sm font-medium text-blue-200/70 mb-2">Confirm Password</label>
                   <div className="relative">
@@ -282,7 +344,7 @@ const AuthPage = () => {
                       id="auth-confirm-password"
                       name="confirmPassword"
                       type={showConfirmPassword ? 'text' : 'password'}
-                      required={!isLogin}
+                      required={!isLogin || !!resetToken}
                       placeholder="••••••••"
                       value={formData.confirmPassword}
                       onChange={handleChange}
@@ -303,6 +365,7 @@ const AuthPage = () => {
                 </div>
               )}
 
+
               {/* Submit */}
               <button
                 id="auth-submit"
@@ -313,29 +376,60 @@ const AuthPage = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>{isLogin ? 'Signing in...' : 'Creating account...'}</span>
+                    <span>
+                      {resetToken 
+                        ? 'Resetting...' 
+                        : isForgotPassword 
+                        ? 'Sending...' 
+                        : isLogin 
+                        ? 'Signing in...' 
+                        : 'Creating account...'}
+                    </span>
                   </>
                 ) : (
                   <>
-                    <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                    <span>
+                      {resetToken 
+                        ? 'Reset Password' 
+                        : isForgotPassword 
+                        ? 'Send Reset Link' 
+                        : isLogin 
+                        ? 'Sign In' 
+                        : 'Create Account'}
+                    </span>
                     <ArrowRight className="w-5 h-5" />
                   </>
                 )}
               </button>
             </form>
 
-            {/* Switch mode */}
+            {/* Switch mode / Back link */}
             <div className="mt-8 text-center">
-              <p className="text-blue-200/40 text-sm">
-                {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
+              {resetToken || isForgotPassword ? (
                 <button
-                  id="auth-switch-mode"
-                  onClick={switchMode}
-                  className="text-blue-400 hover:text-blue-300 font-semibold transition-colors cursor-pointer"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    clearResetUrl();
+                    setError('');
+                    setSuccess('');
+                    setFormData({ name: '', email: '', password: '', confirmPassword: '' });
+                  }}
+                  className="text-blue-400 hover:text-blue-300 font-semibold text-sm transition-colors cursor-pointer"
                 >
-                  {isLogin ? 'Create one' : 'Sign in'}
+                  Back to Sign In
                 </button>
-              </p>
+              ) : (
+                <p className="text-blue-200/40 text-sm">
+                  {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
+                  <button
+                    id="auth-switch-mode"
+                    onClick={switchMode}
+                    className="text-blue-400 hover:text-blue-300 font-semibold transition-colors cursor-pointer"
+                  >
+                    {isLogin ? 'Create one' : 'Sign in'}
+                  </button>
+                </p>
+              )}
             </div>
           </div>
 
