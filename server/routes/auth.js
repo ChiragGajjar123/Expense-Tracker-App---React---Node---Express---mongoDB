@@ -11,6 +11,15 @@ const generateToken = (userId) => {
   });
 };
 
+const setAuthCookie = (res, token) => {
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+};
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
@@ -20,8 +29,8 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'All fields are required.' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters.' });
     }
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -33,9 +42,9 @@ router.post('/register', async (req, res) => {
     await user.save();
 
     const token = generateToken(user._id);
+    setAuthCookie(res, token);
 
     res.status(201).json({
-      token,
       user: {
         id: user._id,
         name: user.name,
@@ -50,7 +59,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: messages.join(' ') });
     }
     console.error('Register error:', err);
-    res.status(500).json({ message: 'Server error: ' + err.message, stack: err.stack });
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 });
 
@@ -74,9 +83,9 @@ router.post('/login', async (req, res) => {
     }
 
     const token = generateToken(user._id);
+    setAuthCookie(res, token);
 
     res.json({
-      token,
       user: {
         id: user._id,
         name: user.name,
@@ -87,8 +96,18 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ message: 'Server error: ' + err.message, stack: err.stack });
+    res.status(500).json({ message: 'Internal Server Error' });
   }
+});
+
+// POST /api/auth/logout
+router.post('/logout', (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
+  });
+  res.json({ message: 'Logged out successfully.' });
 });
 
 // GET /api/auth/me — Get current user profile
@@ -108,7 +127,7 @@ router.get('/me', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('Get profile error:', err);
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 });
 
@@ -140,7 +159,7 @@ router.put('/profile', auth, async (req, res) => {
       return res.status(400).json({ message: messages.join(' ') });
     }
     console.error('Update profile error:', err);
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 });
 
@@ -152,8 +171,8 @@ router.put('/password', auth, async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ message: 'Current and new passwords are required.' });
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'New password must be at least 6 characters.' });
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters.' });
     }
 
     const user = await User.findById(req.userId).select('+password');
@@ -166,10 +185,11 @@ router.put('/password', auth, async (req, res) => {
     await user.save();
 
     const token = generateToken(user._id);
-    res.json({ message: 'Password changed successfully.', token });
+    setAuthCookie(res, token);
+    res.json({ message: 'Password changed successfully.' });
   } catch (err) {
     console.error('Change password error:', err);
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 });
 
@@ -199,10 +219,16 @@ router.delete('/account', auth, async (req, res) => {
       User.findByIdAndDelete(req.userId)
     ]);
 
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+
     res.json({ message: 'Account deleted successfully.' });
   } catch (err) {
     console.error('Delete account error:', err);
-    res.status(500).json({ message: 'Server error.' });
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 });
 

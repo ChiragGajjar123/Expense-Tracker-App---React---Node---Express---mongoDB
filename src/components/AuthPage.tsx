@@ -47,8 +47,8 @@ const AuthPage = () => {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters.');
       return;
     }
 
@@ -229,9 +229,9 @@ const AuthPage = () => {
                     <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
-                          formData.password.length < 6
+                          formData.password.length < 8
                             ? 'bg-red-500 w-1/4'
-                            : formData.password.length < 8
+                            : formData.password.length < 10
                             ? 'bg-yellow-500 w-1/2'
                             : formData.password.length < 12
                             ? 'bg-blue-500 w-3/4'
@@ -239,9 +239,9 @@ const AuthPage = () => {
                         }`}
                         style={{
                           width:
-                            formData.password.length < 6
+                            formData.password.length < 8
                               ? '25%'
-                              : formData.password.length < 8
+                              : formData.password.length < 10
                               ? '50%'
                               : formData.password.length < 12
                               ? '75%'
@@ -251,18 +251,18 @@ const AuthPage = () => {
                     </div>
                     <span
                       className={`text-xs font-medium ${
-                        formData.password.length < 6
+                        formData.password.length < 8
                           ? 'text-red-400'
-                          : formData.password.length < 8
+                          : formData.password.length < 10
                           ? 'text-yellow-400'
                           : formData.password.length < 12
                           ? 'text-blue-400'
                           : 'text-emerald-400'
                       }`}
                     >
-                      {formData.password.length < 6
+                      {formData.password.length < 8
                         ? 'Weak'
-                        : formData.password.length < 8
+                        : formData.password.length < 10
                         ? 'Fair'
                         : formData.password.length < 12
                         ? 'Good'

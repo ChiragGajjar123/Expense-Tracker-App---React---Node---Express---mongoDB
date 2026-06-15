@@ -14,7 +14,6 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
@@ -29,57 +28,41 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
   const [isLoading, setIsLoading] = useState(true);
 
-  const saveAuth = (newToken: string, newUser: User) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    setUser(newUser);
-  };
-
-  const clearAuth = useCallback(() => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-  }, []);
-
-  // Verify token on mount
+  // Verify session cookie on mount
   useEffect(() => {
-    const verifyToken = async () => {
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
+    const verifySession = async () => {
       try {
         const res = await fetch(`${API_URL}/me`, {
-          headers: { Authorization: `Bearer ${token}` }
+          credentials: 'include'
         });
         if (res.ok) {
           const userData = await res.json();
           setUser(userData);
         } else {
-          clearAuth();
+          setUser(null);
         }
       } catch {
-        clearAuth();
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
-    verifyToken();
-  }, [token, clearAuth]);
+    verifySession();
+  }, []);
 
   const register = async (name: string, email: string, password: string) => {
     try {
       const res = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ name, email, password })
       });
       const data = await res.json();
       if (res.ok) {
-        saveAuth(data.token, data.user);
+        setUser(data.user);
         return { success: true };
       }
       return { success: false, message: data.message };
@@ -93,11 +76,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password })
       });
       const data = await res.json();
       if (res.ok) {
-        saveAuth(data.token, data.user);
+        setUser(data.user);
         return { success: true };
       }
       return { success: false, message: data.message };
@@ -106,18 +90,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = () => {
-    clearAuth();
-  };
+  const logout = useCallback(async () => {
+    try {
+      await fetch(`${API_URL}/logout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (err) {
+      console.error('Logout request failed:', err);
+    } finally {
+      setUser(null);
+    }
+  }, []);
 
   const updateProfile = async (profileData: { name?: string; currency?: string }) => {
     try {
       const res = await fetch(`${API_URL}/profile`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(profileData)
       });
       const data = await res.json();
@@ -136,15 +129,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetch(`${API_URL}/password`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ currentPassword, newPassword })
       });
       const data = await res.json();
       if (res.ok) {
-        localStorage.setItem('token', data.token);
-        setToken(data.token);
         return { success: true, message: data.message };
       }
       return { success: false, message: data.message };
@@ -158,14 +149,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetch(`${API_URL}/account`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ password })
       });
       const data = await res.json();
       if (res.ok) {
-        clearAuth();
+        setUser(null);
         return { success: true, message: data.message };
       }
       return { success: false, message: data.message };
@@ -178,9 +169,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
-        token,
         isLoading,
-        isAuthenticated: !!user && !!token,
+        isAuthenticated: !!user,
         login,
         register,
         logout,

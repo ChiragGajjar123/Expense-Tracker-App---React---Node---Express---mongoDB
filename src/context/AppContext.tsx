@@ -22,14 +22,13 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const { token, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<BudgetInfo[]>([]);
   const [categories] = useState<Category[]>(DEFAULT_CATEGORIES);
 
   const authHeaders = (): HeadersInit => ({
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {})
+    'Content-Type': 'application/json'
   });
 
   useEffect(() => {
@@ -42,8 +41,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const fetchData = async () => {
       try {
         const [transRes, budgetRes] = await Promise.all([
-          fetch(`${API_URL}/transactions`, { headers: authHeaders() }),
-          fetch(`${API_URL}/budgets`, { headers: authHeaders() })
+          fetch(`${API_URL}/transactions`, { headers: authHeaders(), credentials: 'include' }),
+          fetch(`${API_URL}/budgets`, { headers: authHeaders(), credentials: 'include' })
         ]);
         if (transRes.ok && budgetRes.ok) {
           const transData = await transRes.json();
@@ -57,13 +56,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated]);
 
   const addTransaction = async (newTransaction: Omit<Transaction, 'id'>) => {
     try {
       const res = await fetch(`${API_URL}/transactions`, {
         method: 'POST',
         headers: authHeaders(),
+        credentials: 'include',
         body: JSON.stringify(newTransaction)
       });
       const data = await res.json();
@@ -78,6 +78,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetch(`${API_URL}/transactions/${updatedTransaction.id}`, {
         method: 'PUT',
         headers: authHeaders(),
+        credentials: 'include',
         body: JSON.stringify(updatedTransaction)
       });
       const data = await res.json();
@@ -89,7 +90,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteTransaction = async (id: string) => {
     try {
-      await fetch(`${API_URL}/transactions/${id}`, { method: 'DELETE', headers: authHeaders() });
+      await fetch(`${API_URL}/transactions/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+        credentials: 'include'
+      });
       setTransactions(transactions.filter((t) => t.id !== id));
     } catch (err) {
       console.error('Error deleting transaction:', err);
@@ -101,6 +106,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetch(`${API_URL}/budgets`, {
         method: 'POST',
         headers: authHeaders(),
+        credentials: 'include',
         body: JSON.stringify(newBudget)
       });
       const data = await res.json();

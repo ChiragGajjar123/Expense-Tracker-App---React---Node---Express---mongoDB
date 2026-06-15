@@ -54,8 +54,8 @@ const Settings = () => {
       setPasswordMsg({ type: 'error', text: 'New passwords do not match.' });
       return;
     }
-    if (passwordData.newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters.' });
+    if (passwordData.newPassword.length < 8) {
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 8 characters.' });
       return;
     }
     setPasswordLoading(true);
@@ -267,7 +267,7 @@ const Settings = () => {
                       value={passwordData.newPassword}
                       onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                       className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm sm:text-base"
-                      placeholder="Enter new password (min 6 characters)"
+                      placeholder="Enter new password (min 8 characters)"
                     />
                     <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer" tabIndex={-1}>
                       {showNewPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
