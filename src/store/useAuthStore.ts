@@ -1,7 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-
-const API_URL = '/api/auth';
+import { create } from 'zustand';
 
 export interface User {
   id: string;
@@ -12,13 +9,13 @@ export interface User {
   createdAt?: string;
 }
 
-interface AuthContextType {
+interface AuthState {
   user: User | null;
   isLoading: boolean;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  verifySession: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  logout: () => Promise<void>;
   updateProfile: (data: { name?: string; currency?: string }) => Promise<{ success: boolean; message?: string }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message?: string }>;
   deleteAccount: (password: string) => Promise<{ success: boolean; message?: string }>;
@@ -26,35 +23,31 @@ interface AuthContextType {
   resetPassword: (token: string, newPassword: string) => Promise<{ success: boolean; message?: string }>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const API_URL = '/api/auth';
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  isLoading: true,
 
-  // Verify session cookie on mount
-  useEffect(() => {
-    const verifySession = async () => {
-      try {
-        const res = await fetch(`${API_URL}/me`, {
-          credentials: 'include'
-        });
-        if (res.ok) {
-          const userData = await res.json();
-          setUser(userData);
-        } else {
-          setUser(null);
-        }
-      } catch {
-        setUser(null);
-      } finally {
-        setIsLoading(false);
+  verifySession: async () => {
+    try {
+      const res = await fetch(`${API_URL}/me`, {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const userData = await res.json();
+        set({ user: userData });
+      } else {
+        set({ user: null });
       }
-    };
-    verifySession();
-  }, []);
+    } catch {
+      set({ user: null });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
 
-  const register = async (name: string, email: string, password: string) => {
+  register: async (name, email, password) => {
     try {
       const res = await fetch(`${API_URL}/register`, {
         method: 'POST',
@@ -64,16 +57,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await res.json();
       if (res.ok) {
-        setUser(data.user);
+        set({ user: data.user });
         return { success: true };
       }
       return { success: false, message: data.message };
     } catch {
       return { success: false, message: 'Network error. Please try again.' };
     }
-  };
+  },
 
-  const login = async (email: string, password: string) => {
+  login: async (email, password) => {
     try {
       const res = await fetch(`${API_URL}/login`, {
         method: 'POST',
@@ -83,16 +76,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await res.json();
       if (res.ok) {
-        setUser(data.user);
+        set({ user: data.user });
         return { success: true };
       }
       return { success: false, message: data.message };
     } catch {
       return { success: false, message: 'Network error. Please try again.' };
     }
-  };
+  },
 
-  const logout = useCallback(async () => {
+  logout: async () => {
     try {
       await fetch(`${API_URL}/logout`, {
         method: 'POST',
@@ -101,11 +94,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('Logout request failed:', err);
     } finally {
-      setUser(null);
+      set({ user: null });
     }
-  }, []);
+  },
 
-  const updateProfile = async (profileData: { name?: string; currency?: string }) => {
+  updateProfile: async (profileData) => {
     try {
       const res = await fetch(`${API_URL}/profile`, {
         method: 'PUT',
@@ -117,16 +110,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await res.json();
       if (res.ok) {
-        setUser(data);
+        set({ user: data });
         return { success: true };
       }
       return { success: false, message: data.message };
     } catch {
       return { success: false, message: 'Network error. Please try again.' };
     }
-  };
+  },
 
-  const changePassword = async (currentPassword: string, newPassword: string) => {
+  changePassword: async (currentPassword, newPassword) => {
     try {
       const res = await fetch(`${API_URL}/password`, {
         method: 'PUT',
@@ -144,9 +137,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch {
       return { success: false, message: 'Network error. Please try again.' };
     }
-  };
+  },
 
-  const deleteAccount = async (password: string) => {
+  deleteAccount: async (password) => {
     try {
       const res = await fetch(`${API_URL}/account`, {
         method: 'DELETE',
@@ -158,16 +151,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await res.json();
       if (res.ok) {
-        setUser(null);
+        set({ user: null });
         return { success: true, message: data.message };
       }
       return { success: false, message: data.message };
     } catch {
       return { success: false, message: 'Network error. Please try again.' };
     }
-  };
+  },
 
-  const forgotPassword = async (email: string) => {
+  forgotPassword: async (email) => {
     try {
       const res = await fetch(`${API_URL}/forgot-password`, {
         method: 'POST',
@@ -180,9 +173,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch {
       return { success: false, message: 'Network error. Please try again.' };
     }
-  };
+  },
 
-  const resetPassword = async (token: string, newPassword: string) => {
+  resetPassword: async (token, newPassword) => {
     try {
       const res = await fetch(`${API_URL}/reset-password`, {
         method: 'POST',
@@ -192,40 +185,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await res.json();
       if (res.ok) {
-        setUser(data.user);
+        set({ user: data.user });
         return { success: true, message: data.message };
       }
       return { success: false, message: data.message };
     } catch {
       return { success: false, message: 'Network error. Please try again.' };
     }
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        register,
-        logout,
-        updateProfile,
-        changePassword,
-        deleteAccount,
-        forgotPassword,
-        resetPassword,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
   }
-  return context;
-};
+}));

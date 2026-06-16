@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Calendar, Tag, Info, DollarSign, ChevronDown, Loader2 } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
+import { useAppStore } from '../store/useAppStore';
 import type { Transaction } from '../appTypes';
 
 interface TransactionFormProps {
@@ -9,7 +9,9 @@ interface TransactionFormProps {
 }
 
 const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) => {
-  const { categories, addTransaction, updateTransaction } = useAppContext();
+  const categories = useAppStore((state) => state.categories);
+  const addTransaction = useAppStore((state) => state.addTransaction);
+  const updateTransaction = useAppStore((state) => state.updateTransaction);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const categoryRef = useRef<HTMLDivElement>(null);

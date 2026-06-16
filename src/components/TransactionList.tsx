@@ -5,7 +5,7 @@ import {
   Receipt, Briefcase, Laptop, TrendingUp, Gift, PlusCircle, Loader2
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
+import { useAppStore } from '../store/useAppStore';
 import { format } from 'date-fns';
 import type { Transaction } from '../appTypes';
 
@@ -15,7 +15,9 @@ const IconMap: Record<string, LucideIcon> = {
 };
 
 const TransactionList = ({ onEdit }: { onEdit: (t: Transaction) => void }) => {
-  const { transactions, categories, deleteTransaction } = useAppContext();
+  const transactions = useAppStore((state) => state.transactions);
+  const categories = useAppStore((state) => state.categories);
+  const deleteTransaction = useAppStore((state) => state.deleteTransaction);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);

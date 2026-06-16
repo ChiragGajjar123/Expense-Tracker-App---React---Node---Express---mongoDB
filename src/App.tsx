@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { useAuth } from './context/AuthContext';
+import { useState, useEffect } from 'react';
+import { useAuthStore } from './store/useAuthStore';
+import { useAppStore } from './store/useAppStore';
 import AuthPage from './components/AuthPage';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -11,7 +12,25 @@ import type { Transaction } from './appTypes';
 import { Loader2 } from 'lucide-react';
 
 function App() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const verifySession = useAuthStore((state) => state.verifySession);
+  const fetchData = useAppStore((state) => state.fetchData);
+  const clearData = useAppStore((state) => state.clearData);
+
+  const isAuthenticated = !!user;
+
+  useEffect(() => {
+    verifySession();
+  }, [verifySession]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchData();
+    } else {
+      clearData();
+    }
+  }, [isAuthenticated, fetchData, clearData]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);

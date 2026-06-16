@@ -4,10 +4,13 @@ import {
   ArrowRight, Loader2, AlertCircle, CheckCircle2,
   TrendingUp, PieChart, Shield
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../store/useAuthStore';
 
 const AuthPage = () => {
-  const { login, register, forgotPassword, resetPassword } = useAuth();
+  const login = useAuthStore((state) => state.login);
+  const register = useAuthStore((state) => state.register);
+  const forgotPassword = useAuthStore((state) => state.forgotPassword);
+  const resetPassword = useAuthStore((state) => state.resetPassword);
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(() => {

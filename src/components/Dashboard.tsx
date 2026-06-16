@@ -3,12 +3,23 @@ import {
   PieChart, Pie, Cell 
 } from 'recharts';
 import { TrendingUp, TrendingDown, Wallet, PieChart as PieChartIcon } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
+import { useAppStore } from '../store/useAppStore';
 import { format, subDays } from 'date-fns';
 import { useState, useEffect } from 'react';
 
 const Dashboard = () => {
-  const { transactions, categories, totalBalance, totalIncome, totalExpenses } = useAppContext();
+  const transactions = useAppStore((state) => state.transactions);
+  const categories = useAppStore((state) => state.categories);
+
+  const totalIncome = transactions
+    .filter((t) => t.type === 'income')
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  const totalExpenses = transactions
+    .filter((t) => t.type === 'expense')
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  const totalBalance = totalIncome - totalExpenses;
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {

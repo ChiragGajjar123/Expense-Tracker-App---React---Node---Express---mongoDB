@@ -1,6 +1,6 @@
 import React from 'react';
 import { Wallet, PieChart, List, Settings, PlusCircle, LogOut } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../store/useAuthStore';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,7 +10,8 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAddClick }) => {
-  const { user, logout } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: PieChart },

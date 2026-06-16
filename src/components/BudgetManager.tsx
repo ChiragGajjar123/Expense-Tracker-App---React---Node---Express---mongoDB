@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Target, AlertCircle, Plus, ChevronDown, Loader2 } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
+import { useAppStore } from '../store/useAppStore';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
 const BudgetManager: React.FC = () => {
-  const { categories, transactions, budgets, updateBudget } = useAppContext();
+  const categories = useAppStore((state) => state.categories);
+  const transactions = useAppStore((state) => state.transactions);
+  const budgets = useAppStore((state) => state.budgets);
+  const updateBudget = useAppStore((state) => state.updateBudget);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [amount, setAmount] = useState('');
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);

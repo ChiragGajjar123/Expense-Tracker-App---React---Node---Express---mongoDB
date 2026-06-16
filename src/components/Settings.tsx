@@ -3,10 +3,28 @@ import {
   User, Mail, Lock, Shield, Trash2, LogOut, Save,
   Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, ChevronRight
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../store/useAuthStore';
+
+const StatusMessage = ({ msg }: { msg: { type: 'success' | 'error'; text: string } | null }) => {
+  if (!msg) return null;
+  return (
+    <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${
+      msg.type === 'success'
+        ? 'bg-green-50 text-green-700 border border-green-100'
+        : 'bg-red-50 text-red-700 border border-red-100'
+    }`}>
+      {msg.type === 'success' ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+      {msg.text}
+    </div>
+  );
+};
 
 const Settings = () => {
-  const { user, logout, updateProfile, changePassword, deleteAccount } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
+  const changePassword = useAuthStore((state) => state.changePassword);
+  const deleteAccount = useAuthStore((state) => state.deleteAccount);
   const [activeSection, setActiveSection] = useState<'profile' | 'password' | 'danger'>('profile');
 
   // Profile state
@@ -89,19 +107,7 @@ const Settings = () => {
     { id: 'danger' as const, label: 'Account', icon: Trash2, desc: 'Delete account' },
   ];
 
-  const StatusMessage = ({ msg }: { msg: { type: 'success' | 'error'; text: string } | null }) => {
-    if (!msg) return null;
-    return (
-      <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${
-        msg.type === 'success'
-          ? 'bg-green-50 text-green-700 border border-green-100'
-          : 'bg-red-50 text-red-700 border border-red-100'
-      }`}>
-        {msg.type === 'success' ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
-        {msg.text}
-      </div>
-    );
-  };
+
 
   return (
     <div className="space-y-6">
