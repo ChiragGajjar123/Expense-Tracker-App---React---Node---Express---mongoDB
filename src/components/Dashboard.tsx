@@ -2,7 +2,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell 
 } from 'recharts';
-import { TrendingUp, TrendingDown, Wallet, PieChart as PieChartIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, PieChart as PieChartIcon, Info } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { format, subDays } from 'date-fns';
 import { useState, useEffect } from 'react';
@@ -11,14 +11,11 @@ const Dashboard = () => {
   const transactions = useAppStore((state) => state.transactions);
   const categories = useAppStore((state) => state.categories);
 
-  const totalIncome = transactions
-    .filter((t) => t.type === 'income')
-    .reduce((acc, t) => acc + t.amount, 0);
+  const incomeTransactions = transactions.filter((t) => t.type === 'income');
+  const expenseTransactions = transactions.filter((t) => t.type === 'expense');
 
-  const totalExpenses = transactions
-    .filter((t) => t.type === 'expense')
-    .reduce((acc, t) => acc + t.amount, 0);
-
+  const totalIncome = incomeTransactions.reduce((acc, t) => acc + t.amount, 0);
+  const totalExpenses = expenseTransactions.reduce((acc, t) => acc + t.amount, 0);
   const totalBalance = totalIncome - totalExpenses;
   const [isMounted, setIsMounted] = useState(false);
 
@@ -62,37 +59,85 @@ const Dashboard = () => {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex-1 min-w-0">
+        {/* Total Balance Card */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex-1 min-w-0 relative group">
+          {/* Tooltip centered below card */}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-slate-900/95 text-white text-xs rounded-lg p-2.5 shadow-xl z-50 w-52 pointer-events-none transition-all duration-200 text-center">
+            <p className="font-semibold mb-1">Total Balance</p>
+            <p className="text-sm font-bold text-blue-400 mb-1.5">${totalBalance.toLocaleString()}</p>
+            <p className="text-[10px] text-slate-300 leading-relaxed border-t border-slate-800 pt-1.5">
+              Calculated as: Income (${totalIncome.toLocaleString()}) - Expenses (${totalExpenses.toLocaleString()})
+            </p>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900/95" />
+          </div>
+
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="p-2.5 sm:p-3 bg-blue-50 rounded-xl text-blue-600 flex-shrink-0">
               <Wallet className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Balance</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Balance</p>
+                <Info className="w-3.5 h-3.5 text-gray-400" />
+              </div>
               <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">${totalBalance.toLocaleString()}</h3>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex-1 min-w-0">
+        {/* Total Income Card */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex-1 min-w-0 relative group">
+          {/* Tooltip centered below card */}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-slate-900/95 text-white text-xs rounded-lg p-2.5 shadow-xl z-50 w-52 pointer-events-none transition-all duration-200 text-center">
+            <p className="font-semibold mb-1">Total Income</p>
+            <p className="text-sm font-bold text-green-400 mb-1.5">+${totalIncome.toLocaleString()}</p>
+            <p className="text-[10px] text-slate-300 leading-relaxed border-t border-slate-800 pt-1.5">
+              Sum of all positive transactions.
+            </p>
+            <p className="text-[10px] mt-1 text-green-400 font-semibold">
+              Count: {incomeTransactions.length} transaction{incomeTransactions.length === 1 ? '' : 's'}
+            </p>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900/95" />
+          </div>
+
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="p-2.5 sm:p-3 bg-green-50 rounded-xl text-green-600 flex-shrink-0">
               <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Income</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Income</p>
+                <Info className="w-3.5 h-3.5 text-gray-400" />
+              </div>
               <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 text-green-600 truncate">+${totalIncome.toLocaleString()}</h3>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex-1 min-w-0 sm:col-span-2 lg:col-span-1">
+        {/* Total Expenses Card */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 flex-1 min-w-0 sm:col-span-2 lg:col-span-1 relative group">
+          {/* Tooltip centered below card */}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-slate-900/95 text-white text-xs rounded-lg p-2.5 shadow-xl z-50 w-52 pointer-events-none transition-all duration-200 text-center">
+            <p className="font-semibold mb-1">Total Expenses</p>
+            <p className="text-sm font-bold text-red-400 mb-1.5">-${totalExpenses.toLocaleString()}</p>
+            <p className="text-[10px] text-slate-300 leading-relaxed border-t border-slate-800 pt-1.5">
+              Sum of all negative transactions.
+            </p>
+            <p className="text-[10px] mt-1 text-red-400 font-semibold">
+              Count: {expenseTransactions.length} transaction{expenseTransactions.length === 1 ? '' : 's'}
+            </p>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900/95" />
+          </div>
+
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="p-2.5 sm:p-3 bg-red-50 rounded-xl text-red-600 flex-shrink-0">
               <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Expenses</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Expenses</p>
+                <Info className="w-3.5 h-3.5 text-gray-400" />
+              </div>
               <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 text-red-600 truncate">-${totalExpenses.toLocaleString()}</h3>
             </div>
           </div>

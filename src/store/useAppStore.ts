@@ -8,6 +8,7 @@ interface AppState {
   transactions: Transaction[];
   budgets: BudgetInfo[];
   categories: Category[];
+  isLoadingData: boolean;
   fetchData: () => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
@@ -24,8 +25,10 @@ export const useAppStore = create<AppState>((set) => ({
   transactions: [],
   budgets: [],
   categories: DEFAULT_CATEGORIES,
+  isLoadingData: true,
 
   fetchData: async () => {
+    set({ isLoadingData: true });
     try {
       const [transRes, budgetRes] = await Promise.all([
         fetch(`${API_URL}/transactions`, { headers: authHeaders(), credentials: 'include' }),
@@ -38,6 +41,8 @@ export const useAppStore = create<AppState>((set) => ({
       }
     } catch (err) {
       console.error('Error fetching data:', err);
+    } finally {
+      set({ isLoadingData: false });
     }
   },
 
@@ -115,6 +120,6 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   clearData: () => {
-    set({ transactions: [], budgets: [] });
+    set({ transactions: [], budgets: [], isLoadingData: true });
   }
 }));

@@ -17,6 +17,7 @@ function App() {
   const verifySession = useAuthStore((state) => state.verifySession);
   const fetchData = useAppStore((state) => state.fetchData);
   const clearData = useAppStore((state) => state.clearData);
+  const isLoadingData = useAppStore((state) => state.isLoadingData);
 
   const isAuthenticated = !!user;
 
@@ -48,7 +49,7 @@ function App() {
   // Loading spinner while checking auth
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50">
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
           <p className="text-gray-400 text-sm font-medium">Loading...</p>
@@ -60,6 +61,18 @@ function App() {
   // Show auth page if not logged in
   if (!isAuthenticated) {
     return <AuthPage />;
+  }
+
+  // Loading spinner while fetching initial data
+  if (isLoadingData) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+          <p className="text-gray-500 text-sm font-medium">Loading your financial data...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
