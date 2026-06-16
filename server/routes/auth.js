@@ -113,12 +113,34 @@ router.post('/logout', (req, res) => {
 });
 
 // GET /api/auth/me — Get current user profile
-router.get('/me', auth, async (req, res) => {
+router.get('/me', async (req, res) => {
   try {
-    const user = await User.findById(req.userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+    let token = req.cookies?.token;
+
+    // Fallback to Authorization header
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+      }
     }
+
+    if (!token) {
+      return res.json(null);
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.json(null);
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.json(null);
+    }
+
     res.json({
       id: user._id,
       name: user.name,
@@ -244,7 +266,7 @@ router.post('/forgot-password', async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
-      return res.status(200).json({ message: 'If an account is associated with this email, a reset link has been sent.' });
+      return res.status(404).json({ message: 'Account with this email address does not exist.' });
     }
 
     const token = crypto.randomBytes(32).toString('hex');
