@@ -269,9 +269,18 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(404).json({ message: 'Account with this email address does not exist.' });
     }
 
+    const cooldown = 60 * 1000;
+    if (user.lastResetRequest && Date.now() - user.lastResetRequest.getTime() < cooldown) {
+      const remainingSeconds = Math.ceil((cooldown - (Date.now() - user.lastResetRequest.getTime())) / 1000);
+      return res.status(429).json({
+        message: `Please wait ${remainingSeconds} seconds before requesting another password reset link.`
+      });
+    }
+
     const token = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = token;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    user.lastResetRequest = new Date();
     await user.save();
 
     const resendApiKey = process.env.RESEND_API_KEY;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Wallet, Mail, Lock, User, Eye, EyeOff,
   ArrowRight, Loader2, AlertCircle, CheckCircle2,
@@ -22,7 +22,8 @@ const AuthPage = () => {
     showConfirmPassword: false,
     isSubmitting: false,
     error: '',
-    success: ''
+    success: '',
+    cooldown: 0
   });
 
   const {
@@ -33,8 +34,34 @@ const AuthPage = () => {
     showConfirmPassword,
     isSubmitting,
     error,
-    success
+    success,
+    cooldown
   } = state;
+
+  useEffect(() => {
+    const savedTime = localStorage.getItem('lastPasswordResetRequest');
+    if (savedTime) {
+      const elapsed = Date.now() - parseInt(savedTime, 10);
+      const remaining = Math.ceil((60000 - elapsed) / 1000);
+      if (remaining > 0) {
+        setState(prev => ({ ...prev, cooldown: remaining }));
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setState(prev => {
+        if (prev.cooldown <= 1) {
+          clearInterval(timer);
+          return { ...prev, cooldown: 0 };
+        }
+        return { ...prev, cooldown: prev.cooldown - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -93,7 +120,12 @@ const AuthPage = () => {
       } else if (isForgotPassword) {
         const result = await forgotPassword(formData.email);
         if (result.success) {
-          setState(prev => ({ ...prev, success: result.message || 'Reset link sent to your email.' }));
+          setState(prev => ({ 
+            ...prev, 
+            success: result.message || 'Reset link sent to your email.',
+            cooldown: 60
+          }));
+          localStorage.setItem('lastPasswordResetRequest', Date.now().toString());
         } else {
           setState(prev => ({ ...prev, error: result.message || 'Failed to send reset link.' }));
         }
@@ -381,7 +413,7 @@ const AuthPage = () => {
               <button
                 id="auth-submit"
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || (isForgotPassword && cooldown > 0)}
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-blue-600/50 disabled:to-indigo-600/50 text-white font-bold py-3.5 sm:py-4 rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 {isSubmitting ? (
@@ -403,12 +435,14 @@ const AuthPage = () => {
                       {resetToken 
                         ? 'Reset Password' 
                         : isForgotPassword 
-                        ? 'Send Reset Link' 
-                        : isLogin 
-                        ? 'Sign In' 
-                        : 'Create Account'}
+                          ? cooldown > 0
+                            ? `Resend Link in ${cooldown}s`
+                            : 'Send Reset Link'
+                          : isLogin 
+                          ? 'Sign In' 
+                          : 'Create Account'}
                     </span>
-                    <ArrowRight className="w-5 h-5" />
+                    {!(isForgotPassword && cooldown > 0) && <ArrowRight className="w-5 h-5" />}
                   </>
                 )}
               </button>
