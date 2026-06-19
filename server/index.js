@@ -9,8 +9,14 @@ import Transaction from './models/Transaction.js';
 import Budget from './models/Budget.js';
 import authRoutes from './routes/auth.js';
 import auth from './middleware/auth.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load environment variables from both root and server directories
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -156,5 +162,4 @@ if (process.env.NODE_ENV !== 'production') {
     console.log(`Server is running on port ${PORT}`);
   });
 }
-
 export default app;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Search, ArrowUpRight, ArrowDownLeft, Trash2, Edit2, 
   Utensils, Car, ShoppingBag, Film, Heart, Plane, BookOpen, 
@@ -31,13 +31,16 @@ const TransactionList = ({ onEdit }: { onEdit: (t: Transaction) => void }) => {
     }
   };
 
-  const filteredTransactions = transactions
-    .filter(t => {
-      const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase());
-      const matchesFilter = filter === 'all' || t.type === filter;
-      return matchesSearch && matchesFilter;
-    })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filteredTransactions = useMemo(() => {
+    const searchLower = search.toLowerCase();
+    return transactions
+      .filter(t => {
+        const matchesSearch = t.title.toLowerCase().includes(searchLower);
+        const matchesFilter = filter === 'all' || t.type === filter;
+        return matchesSearch && matchesFilter;
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [transactions, search, filter]);
 
   return (
     <div className="space-y-6">

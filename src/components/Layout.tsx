@@ -9,16 +9,16 @@ interface LayoutProps {
   onAddClick: () => void;
 }
 
+const navItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: PieChart },
+  { id: 'transactions', label: 'Transactions', icon: List },
+  { id: 'budgets', label: 'Budgets', icon: Wallet },
+  { id: 'settings', label: 'Settings', icon: Settings },
+];
+
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onAddClick }) => {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: PieChart },
-    { id: 'transactions', label: 'Transactions', icon: List },
-    { id: 'budgets', label: 'Budgets', icon: Wallet },
-    { id: 'settings', label: 'Settings', icon: Settings },
-  ];
 
   return (
     <div className="h-full bg-gray-50 flex flex-col md:flex-row overflow-hidden">

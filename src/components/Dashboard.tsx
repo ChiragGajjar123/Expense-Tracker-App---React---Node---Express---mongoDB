@@ -5,18 +5,39 @@ import {
 import { TrendingUp, TrendingDown, Wallet, PieChart as PieChartIcon, Info } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { format, subDays } from 'date-fns';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 const Dashboard = () => {
   const transactions = useAppStore((state) => state.transactions);
   const categories = useAppStore((state) => state.categories);
 
-  const incomeTransactions = transactions.filter((t) => t.type === 'income');
-  const expenseTransactions = transactions.filter((t) => t.type === 'expense');
+  // 1. Memoize income/expense stats in a single pass
+  const stats = useMemo(() => {
+    let incomeCount = 0;
+    let expenseCount = 0;
+    let totalIncome = 0;
+    let totalExpenses = 0;
 
-  const totalIncome = incomeTransactions.reduce((acc, t) => acc + t.amount, 0);
-  const totalExpenses = expenseTransactions.reduce((acc, t) => acc + t.amount, 0);
-  const totalBalance = totalIncome - totalExpenses;
+    for (let i = 0; i < transactions.length; i++) {
+      const t = transactions[i];
+      if (t.type === 'income') {
+        incomeCount++;
+        totalIncome += t.amount;
+      } else if (t.type === 'expense') {
+        expenseCount++;
+        totalExpenses += t.amount;
+      }
+    }
+
+    return {
+      totalIncome,
+      totalExpenses,
+      totalBalance: totalIncome - totalExpenses,
+      incomeCount,
+      expenseCount
+    };
+  }, [transactions]);
+
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -27,33 +48,61 @@ const Dashboard = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Prepare data for Category breakdown
-  const categoryData = categories
-    .filter(cat => cat.type === 'expense')
-    .map(cat => {
-      const amount = transactions
-        .filter(t => t.categoryId === cat.id && t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
-      return { name: cat.name, value: amount, color: cat.color };
-    })
-    .filter(item => item.value > 0);
+  // 2. Memoize categoryData breakdown in O(T + C) time
+  const categoryData = useMemo(() => {
+    // Sum amounts per categoryId for expense type transactions
+    const expenseTotals: Record<string, number> = {};
+    for (let i = 0; i < transactions.length; i++) {
+      const t = transactions[i];
+      if (t.type === 'expense') {
+        expenseTotals[t.categoryId] = (expenseTotals[t.categoryId] || 0) + t.amount;
+      }
+    }
 
-  // Prepare data for Last 7 Days chart
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const date = subDays(new Date(), i);
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const dayName = format(date, 'EEE');
-    
-    const income = transactions
-      .filter(t => t.date === dateStr && t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    const expenses = transactions
-      .filter(t => t.date === dateStr && t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+    return categories
+      .filter(cat => cat.type === 'expense')
+      .map(cat => ({
+        name: cat.name,
+        value: expenseTotals[cat.id] || 0,
+        color: cat.color
+      }))
+      .filter(item => item.value > 0);
+  }, [categories, transactions]);
 
-    return { name: dayName, income, expenses, date: dateStr };
-  }).reverse();
+  // 3. Memoize Last 7 Days chart in O(T) time
+  const last7Days = useMemo(() => {
+    // Pre-calculate the last 7 dates and day names
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const date = subDays(new Date(), i);
+      return {
+        dateStr: format(date, 'yyyy-MM-dd'),
+        dayName: format(date, 'EEE')
+      };
+    }).reverse();
+
+    // Group matching transactions for those 7 days
+    const dailyIncome: Record<string, number> = {};
+    const dailyExpense: Record<string, number> = {};
+    const allowedDates = new Set(days.map(d => d.dateStr));
+
+    for (let i = 0; i < transactions.length; i++) {
+      const t = transactions[i];
+      if (allowedDates.has(t.date)) {
+        if (t.type === 'income') {
+          dailyIncome[t.date] = (dailyIncome[t.date] || 0) + t.amount;
+        } else if (t.type === 'expense') {
+          dailyExpense[t.date] = (dailyExpense[t.date] || 0) + t.amount;
+        }
+      }
+    }
+
+    return days.map(d => ({
+      name: d.dayName,
+      income: dailyIncome[d.dateStr] || 0,
+      expenses: dailyExpense[d.dateStr] || 0,
+      date: d.dateStr
+    }));
+  }, [transactions]);
 
   return (
     <div className="space-y-6">
@@ -64,9 +113,9 @@ const Dashboard = () => {
           {/* Tooltip centered below card */}
           <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-slate-900/95 text-white text-xs rounded-lg p-2.5 shadow-xl z-50 w-52 pointer-events-none transition-all duration-200 text-center">
             <p className="font-semibold mb-1">Total Balance</p>
-            <p className="text-sm font-bold text-blue-400 mb-1.5">${totalBalance.toLocaleString()}</p>
+            <p className="text-sm font-bold text-blue-400 mb-1.5">${stats.totalBalance.toLocaleString()}</p>
             <p className="text-[10px] text-slate-300 leading-relaxed border-t border-slate-800 pt-1.5">
-              Calculated as: Income (${totalIncome.toLocaleString()}) - Expenses (${totalExpenses.toLocaleString()})
+              Calculated as: Income (${stats.totalIncome.toLocaleString()}) - Expenses (${stats.totalExpenses.toLocaleString()})
             </p>
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900/95" />
           </div>
@@ -80,7 +129,7 @@ const Dashboard = () => {
                 <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Balance</p>
                 <Info className="w-3.5 h-3.5 text-gray-400" />
               </div>
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">${totalBalance.toLocaleString()}</h3>
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate">${stats.totalBalance.toLocaleString()}</h3>
             </div>
           </div>
         </div>
@@ -90,12 +139,12 @@ const Dashboard = () => {
           {/* Tooltip centered below card */}
           <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-slate-900/95 text-white text-xs rounded-lg p-2.5 shadow-xl z-50 w-52 pointer-events-none transition-all duration-200 text-center">
             <p className="font-semibold mb-1">Total Income</p>
-            <p className="text-sm font-bold text-green-400 mb-1.5">+${totalIncome.toLocaleString()}</p>
+            <p className="text-sm font-bold text-green-400 mb-1.5">+{stats.totalIncome.toLocaleString()}</p>
             <p className="text-[10px] text-slate-300 leading-relaxed border-t border-slate-800 pt-1.5">
               Sum of all positive transactions.
             </p>
             <p className="text-[10px] mt-1 text-green-400 font-semibold">
-              Count: {incomeTransactions.length} transaction{incomeTransactions.length === 1 ? '' : 's'}
+              Count: {stats.incomeCount} transaction{stats.incomeCount === 1 ? '' : 's'}
             </p>
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900/95" />
           </div>
@@ -109,7 +158,7 @@ const Dashboard = () => {
                 <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Income</p>
                 <Info className="w-3.5 h-3.5 text-gray-400" />
               </div>
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 text-green-600 truncate">+${totalIncome.toLocaleString()}</h3>
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 text-green-600 truncate">+{stats.totalIncome.toLocaleString()}</h3>
             </div>
           </div>
         </div>
@@ -119,12 +168,12 @@ const Dashboard = () => {
           {/* Tooltip centered below card */}
           <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block bg-slate-900/95 text-white text-xs rounded-lg p-2.5 shadow-xl z-50 w-52 pointer-events-none transition-all duration-200 text-center">
             <p className="font-semibold mb-1">Total Expenses</p>
-            <p className="text-sm font-bold text-red-400 mb-1.5">-${totalExpenses.toLocaleString()}</p>
+            <p className="text-sm font-bold text-red-400 mb-1.5">-${stats.totalExpenses.toLocaleString()}</p>
             <p className="text-[10px] text-slate-300 leading-relaxed border-t border-slate-800 pt-1.5">
               Sum of all negative transactions.
             </p>
             <p className="text-[10px] mt-1 text-red-400 font-semibold">
-              Count: {expenseTransactions.length} transaction{expenseTransactions.length === 1 ? '' : 's'}
+              Count: {stats.expenseCount} transaction{stats.expenseCount === 1 ? '' : 's'}
             </p>
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900/95" />
           </div>
@@ -138,7 +187,7 @@ const Dashboard = () => {
                 <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">Total Expenses</p>
                 <Info className="w-3.5 h-3.5 text-gray-400" />
               </div>
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 text-red-600 truncate">-${totalExpenses.toLocaleString()}</h3>
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 text-red-600 truncate">-${stats.totalExpenses.toLocaleString()}</h3>
             </div>
           </div>
         </div>

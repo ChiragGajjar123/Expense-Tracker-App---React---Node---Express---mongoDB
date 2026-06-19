@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { X, Calendar, Tag, Info, DollarSign, ChevronDown, Loader2 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { Transaction } from '../appTypes';
@@ -67,7 +67,9 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
     }
   };
 
-  const filteredCategories = categories.filter(c => c.type === formData.type);
+  const filteredCategories = useMemo(() => {
+    return categories.filter(c => c.type === formData.type);
+  }, [categories, formData.type]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">

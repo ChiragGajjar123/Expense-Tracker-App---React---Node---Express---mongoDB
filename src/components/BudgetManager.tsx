@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Target, AlertCircle, Plus, ChevronDown, Loader2 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
@@ -26,25 +26,52 @@ const BudgetManager: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getBudgetInfo = (categoryId: string) => {
-    const budget = budgets.find(b => b.categoryId === categoryId);
-    if (!budget) return null;
+  // Pre-calculate month range values
+  const monthInterval = useMemo(() => {
+    const now = new Date();
+    return {
+      start: startOfMonth(now),
+      end: endOfMonth(now)
+    };
+  }, []);
 
-    const spent = transactions
-      .filter(t => 
-        t.categoryId === categoryId && 
-        isWithinInterval(new Date(t.date), {
-          start: startOfMonth(new Date()),
-          end: endOfMonth(new Date())
-        })
-      )
-      .reduce((sum, t) => sum + t.amount, 0);
+  // Pre-calculate total spent amount for each category in the current month in a single pass O(T)
+  const spentTotalsByCategory = useMemo(() => {
+    const totals: Record<string, number> = {};
+    
+    // Filter transactions for current month once
+    const currentMonthTransactions = transactions.filter(t => 
+      isWithinInterval(new Date(t.date), monthInterval)
+    );
 
-    const percentage = Math.min((spent / budget.amount) * 100, 100);
-    const isOver = spent > budget.amount;
+    for (let i = 0; i < currentMonthTransactions.length; i++) {
+      const t = currentMonthTransactions[i];
+      totals[t.categoryId] = (totals[t.categoryId] || 0) + t.amount;
+    }
 
-    return { budget, spent, percentage, isOver };
-  };
+    return totals;
+  }, [transactions, monthInterval]);
+
+  // Convert budgets to budget info list with O(1) lookup
+  const budgetListWithInfo = useMemo(() => {
+    const list = budgets.map(b => {
+      const category = categories.find(c => c.id === b.categoryId);
+      if (!category) return null;
+
+      const spent = spentTotalsByCategory[b.categoryId] || 0;
+      const percentage = Math.min((spent / b.amount) * 100, 100);
+      const isOver = spent > b.amount;
+
+      return {
+        budget: b,
+        category,
+        spent,
+        percentage,
+        isOver
+      };
+    });
+    return list.filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [budgets, categories, spentTotalsByCategory]);
 
   const handleSetBudget = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,14 +172,10 @@ const BudgetManager: React.FC = () => {
 
         {/* Budgets List */}
         <div className="lg:col-span-2 space-y-4">
-          {budgets.length > 0 ? (
-            budgets.map((b) => {
-              const info = getBudgetInfo(b.categoryId);
-              const category = categories.find(c => c.id === b.categoryId);
-              if (!info || !category) return null;
-
+          {budgetListWithInfo.length > 0 ? (
+            budgetListWithInfo.map(({ budget, category, spent, percentage, isOver }) => {
               return (
-                <div key={b.categoryId} className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div key={budget.categoryId} className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                     <div className="flex items-center gap-3">
                       <div 
@@ -167,9 +190,9 @@ const BudgetManager: React.FC = () => {
                       </div>
                     </div>
                     <div className="w-full sm:w-auto text-left sm:text-right flex flex-row sm:flex-col justify-between items-baseline sm:items-end gap-2">
-                      <p className="font-bold text-gray-900 text-sm sm:text-base whitespace-nowrap">${info.spent.toLocaleString()} / ${b.amount.toLocaleString()}</p>
-                      <p className={`text-[11px] sm:text-sm font-medium whitespace-nowrap ${info.isOver ? 'text-red-600' : 'text-gray-500'}`}>
-                        {info.isOver ? 'Over budget' : `${(b.amount - info.spent).toLocaleString()} left`}
+                      <p className="font-bold text-gray-900 text-sm sm:text-base whitespace-nowrap">${spent.toLocaleString()} / ${budget.amount.toLocaleString()}</p>
+                      <p className={`text-[11px] sm:text-sm font-medium whitespace-nowrap ${isOver ? 'text-red-600' : 'text-gray-500'}`}>
+                        {isOver ? 'Over budget' : `${(budget.amount - spent).toLocaleString()} left`}
                       </p>
                     </div>
                   </div>
@@ -177,13 +200,13 @@ const BudgetManager: React.FC = () => {
                   <div className="relative h-2.5 sm:h-3 bg-gray-100 rounded-full overflow-hidden">
                     <div 
                       className={`absolute top-0 left-0 h-full transition-all duration-500 ${
-                        info.percentage > 90 ? 'bg-red-500' : info.percentage > 70 ? 'bg-yellow-500' : 'bg-green-500'
+                        percentage > 90 ? 'bg-red-500' : percentage > 70 ? 'bg-yellow-500' : 'bg-green-500'
                       }`}
-                      style={{ width: `${info.percentage}%` }}
+                      style={{ width: `${percentage}%` }}
                     />
                   </div>
                   
-                  {info.isOver && (
+                  {isOver && (
                     <div className="mt-4 flex items-center gap-2 text-red-600 text-[11px] sm:text-sm font-medium bg-red-50 p-2.5 sm:p-3 rounded-xl">
                       <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                       Limit exceeded for {category.name}!
