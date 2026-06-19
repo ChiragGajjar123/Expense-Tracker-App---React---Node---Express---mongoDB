@@ -25,78 +25,98 @@ const Settings = () => {
   const updateProfile = useAuthStore((state) => state.updateProfile);
   const changePassword = useAuthStore((state) => state.changePassword);
   const deleteAccount = useAuthStore((state) => state.deleteAccount);
-  const [activeSection, setActiveSection] = useState<'profile' | 'password' | 'danger'>('profile');
-
-  // Profile state
-  const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    currency: user?.currency || 'USD'
+  const [state, setState] = useState({
+    activeSection: 'profile' as 'profile' | 'password' | 'danger',
+    profileData: {
+      name: user?.name || '',
+      currency: user?.currency || 'USD'
+    },
+    profileLoading: false,
+    profileMsg: null as { type: 'success' | 'error'; text: string } | null,
+    passwordData: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    },
+    showCurrentPw: false,
+    showNewPw: false,
+    passwordLoading: false,
+    passwordMsg: null as { type: 'success' | 'error'; text: string } | null,
+    deletePassword: '',
+    showDeletePw: false,
+    deleteLoading: false,
+    deleteMsg: null as { type: 'success' | 'error'; text: string } | null,
+    confirmDelete: false
   });
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Password state
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  const [showCurrentPw, setShowCurrentPw] = useState(false);
-  const [showNewPw, setShowNewPw] = useState(false);
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // Delete state
-  const [deletePassword, setDeletePassword] = useState('');
-  const [showDeletePw, setShowDeletePw] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteMsg, setDeleteMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const {
+    activeSection,
+    profileData,
+    profileLoading,
+    profileMsg,
+    passwordData,
+    showCurrentPw,
+    showNewPw,
+    passwordLoading,
+    passwordMsg,
+    deletePassword,
+    showDeletePw,
+    deleteLoading,
+    deleteMsg,
+    confirmDelete
+  } = state;
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileLoading(true);
-    setProfileMsg(null);
+    setState(prev => ({ ...prev, profileLoading: true, profileMsg: null }));
     const result = await updateProfile(profileData);
-    setProfileMsg({
-      type: result.success ? 'success' : 'error',
-      text: result.success ? 'Profile updated successfully!' : (result.message || 'Failed to update profile.')
-    });
-    setProfileLoading(false);
+    setState(prev => ({
+      ...prev,
+      profileMsg: {
+        type: result.success ? 'success' : 'error',
+        text: result.success ? 'Profile updated successfully!' : (result.message || 'Failed to update profile.')
+      },
+      profileLoading: false
+    }));
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPasswordMsg(null);
+    setState(prev => ({ ...prev, passwordMsg: null }));
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'New passwords do not match.' });
+      setState(prev => ({ ...prev, passwordMsg: { type: 'error', text: 'New passwords do not match.' } }));
       return;
     }
     if (passwordData.newPassword.length < 8) {
-      setPasswordMsg({ type: 'error', text: 'New password must be at least 8 characters.' });
+      setState(prev => ({ ...prev, passwordMsg: { type: 'error', text: 'New password must be at least 8 characters.' } }));
       return;
     }
-    setPasswordLoading(true);
+    setState(prev => ({ ...prev, passwordLoading: true }));
     const result = await changePassword(passwordData.currentPassword, passwordData.newPassword);
-    setPasswordMsg({
-      type: result.success ? 'success' : 'error',
-      text: result.success ? 'Password changed successfully!' : (result.message || 'Failed to change password.')
-    });
-    if (result.success) {
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    }
-    setPasswordLoading(false);
+    setState(prev => ({
+      ...prev,
+      passwordMsg: {
+        type: result.success ? 'success' : 'error',
+        text: result.success ? 'Password changed successfully!' : (result.message || 'Failed to change password.')
+      },
+      passwordData: result.success 
+        ? { currentPassword: '', newPassword: '', confirmPassword: '' } 
+        : prev.passwordData,
+      passwordLoading: false
+    }));
   };
 
   const handleDeleteAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    setDeleteMsg(null);
-    setDeleteLoading(true);
+    setState(prev => ({ ...prev, deleteMsg: null, deleteLoading: true }));
     const result = await deleteAccount(deletePassword);
-    if (!result.success) {
-      setDeleteMsg({ type: 'error', text: result.message || 'Failed to delete account.' });
-    }
-    setDeleteLoading(false);
+    setState(prev => ({
+      ...prev,
+      deleteMsg: !result.success 
+        ? { type: 'error', text: result.message || 'Failed to delete account.' } 
+        : prev.deleteMsg,
+      deleteLoading: false
+    }));
   };
 
   const currencies = ['USD', 'EUR', 'GBP', 'INR', 'JPY', 'CAD', 'AUD'];
@@ -143,7 +163,7 @@ const Settings = () => {
             {sections.map((s) => (
               <button
                 key={s.id}
-                onClick={() => setActiveSection(s.id)}
+                onClick={() => setState(prev => ({ ...prev, activeSection: s.id }))}
                 className={`w-full flex items-center gap-3 px-4 py-3.5 transition-colors cursor-pointer border-l-[3px] ${
                   activeSection === s.id
                     ? 'bg-blue-50/80 border-blue-600 text-blue-700'
@@ -184,7 +204,7 @@ const Settings = () => {
                       type="text"
                       required
                       value={profileData.name}
-                      onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                      onChange={(e) => setState(prev => ({ ...prev, profileData: { ...prev.profileData, name: e.target.value } }))}
                       className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm sm:text-base"
                     />
                   </div>
@@ -209,7 +229,7 @@ const Settings = () => {
                   <select
                     id="settings-currency"
                     value={profileData.currency}
-                    onChange={(e) => setProfileData({ ...profileData, currency: e.target.value })}
+                    onChange={(e) => setState(prev => ({ ...prev, profileData: { ...prev.profileData, currency: e.target.value } }))}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm sm:text-base cursor-pointer appearance-none"
                   >
                     {currencies.map(c => (
@@ -252,11 +272,11 @@ const Settings = () => {
                       type={showCurrentPw ? 'text' : 'password'}
                       required
                       value={passwordData.currentPassword}
-                      onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                      onChange={(e) => setState(prev => ({ ...prev, passwordData: { ...prev.passwordData, currentPassword: e.target.value } }))}
                       className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm sm:text-base"
                       placeholder="Enter current password"
                     />
-                    <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer" tabIndex={-1}>
+                    <button type="button" onClick={() => setState(prev => ({ ...prev, showCurrentPw: !prev.showCurrentPw }))} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer" tabIndex={-1}>
                       {showCurrentPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
@@ -271,11 +291,11 @@ const Settings = () => {
                       type={showNewPw ? 'text' : 'password'}
                       required
                       value={passwordData.newPassword}
-                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                      onChange={(e) => setState(prev => ({ ...prev, passwordData: { ...prev.passwordData, newPassword: e.target.value } }))}
                       className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm sm:text-base"
                       placeholder="Enter new password (min 8 characters)"
                     />
-                    <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer" tabIndex={-1}>
+                    <button type="button" onClick={() => setState(prev => ({ ...prev, showNewPw: !prev.showNewPw }))} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer" tabIndex={-1}>
                       {showNewPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
@@ -290,7 +310,7 @@ const Settings = () => {
                       type="password"
                       required
                       value={passwordData.confirmPassword}
-                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                      onChange={(e) => setState(prev => ({ ...prev, passwordData: { ...prev.passwordData, confirmPassword: e.target.value } }))}
                       className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm sm:text-base"
                       placeholder="Confirm new password"
                     />
@@ -326,7 +346,7 @@ const Settings = () => {
               {!confirmDelete ? (
                 <button
                   id="settings-delete-start"
-                  onClick={() => setConfirmDelete(true)}
+                  onClick={() => setState(prev => ({ ...prev, confirmDelete: true }))}
                   className="mt-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-6 rounded-xl transition-all cursor-pointer flex items-center gap-2 border border-red-200"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -355,11 +375,11 @@ const Settings = () => {
                         type={showDeletePw ? 'text' : 'password'}
                         required
                         value={deletePassword}
-                        onChange={(e) => setDeletePassword(e.target.value)}
+                        onChange={(e) => setState(prev => ({ ...prev, deletePassword: e.target.value }))}
                         className="w-full pl-12 pr-12 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 transition-all text-sm sm:text-base"
                         placeholder="Your password"
                       />
-                      <button type="button" onClick={() => setShowDeletePw(!showDeletePw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer" tabIndex={-1}>
+                      <button type="button" onClick={() => setState(prev => ({ ...prev, showDeletePw: !prev.showDeletePw }))} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer" tabIndex={-1}>
                         {showDeletePw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
@@ -368,7 +388,7 @@ const Settings = () => {
                   <div className="flex gap-3">
                     <button
                       type="button"
-                      onClick={() => { setConfirmDelete(false); setDeletePassword(''); setDeleteMsg(null); }}
+                      onClick={() => setState(prev => ({ ...prev, confirmDelete: false, deletePassword: '', deleteMsg: null }))}
                       className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl transition-all cursor-pointer"
                     >
                       Cancel

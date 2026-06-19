@@ -8,10 +8,14 @@ const BudgetManager: React.FC = () => {
   const transactions = useAppStore((state) => state.transactions);
   const budgets = useAppStore((state) => state.budgets);
   const updateBudget = useAppStore((state) => state.updateBudget);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [amount, setAmount] = useState('');
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [state, setState] = useState({
+    selectedCategory: '',
+    amount: '',
+    isCategoryOpen: false,
+    isSubmitting: false
+  });
+
+  const { selectedCategory, amount, isCategoryOpen, isSubmitting } = state;
   const categoryRef = useRef<HTMLDivElement>(null);
 
   const expenseCategories = categories.filter(c => c.type === 'expense');
@@ -19,7 +23,7 @@ const BudgetManager: React.FC = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (categoryRef.current && !categoryRef.current.contains(event.target as Node)) {
-        setIsCategoryOpen(false);
+        setState(prev => ({ ...prev, isCategoryOpen: false }));
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -77,17 +81,16 @@ const BudgetManager: React.FC = () => {
     e.preventDefault();
     if (!selectedCategory || !amount) return;
     
-    setIsSubmitting(true);
+    setState(prev => ({ ...prev, isSubmitting: true }));
     try {
       await updateBudget({
         categoryId: selectedCategory,
         amount: parseFloat(amount),
         period: 'monthly'
       });
-      setSelectedCategory('');
-      setAmount('');
+      setState(prev => ({ ...prev, selectedCategory: '', amount: '' }));
     } finally {
-      setIsSubmitting(false);
+      setState(prev => ({ ...prev, isSubmitting: false }));
     }
   };
 
@@ -111,7 +114,7 @@ const BudgetManager: React.FC = () => {
                 <div className="relative" ref={categoryRef}>
                   <button
                     type="button"
-                    onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                    onClick={() => setState(prev => ({ ...prev, isCategoryOpen: !prev.isCategoryOpen }))}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-left flex items-center justify-between cursor-pointer"
                   >
                     <span className={`truncate text-sm ${selectedCategory ? 'text-gray-900' : 'text-gray-400'}`}>
@@ -128,10 +131,7 @@ const BudgetManager: React.FC = () => {
                         <button
                           key={cat.id}
                           type="button"
-                          onClick={() => {
-                            setSelectedCategory(cat.id);
-                            setIsCategoryOpen(false);
-                          }}
+                          onClick={() => setState(prev => ({ ...prev, selectedCategory: cat.id, isCategoryOpen: false }))}
                           className="w-full px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 transition-colors cursor-pointer"
                         >
                           <div 
@@ -154,7 +154,7 @@ const BudgetManager: React.FC = () => {
                   type="number"
                   placeholder="0.00"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => setState(prev => ({ ...prev, amount: e.target.value }))}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
                 />
               </div>

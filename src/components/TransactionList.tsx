@@ -18,16 +18,20 @@ const TransactionList = ({ onEdit }: { onEdit: (t: Transaction) => void }) => {
   const transactions = useAppStore((state) => state.transactions);
   const categories = useAppStore((state) => state.categories);
   const deleteTransaction = useAppStore((state) => state.deleteTransaction);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [state, setState] = useState({
+    search: '',
+    filter: 'all' as 'all' | 'income' | 'expense',
+    deletingId: null as string | null
+  });
+
+  const { search, filter, deletingId } = state;
 
   const handleDelete = async (id: string) => {
-    setDeletingId(id);
+    setState(prev => ({ ...prev, deletingId: id }));
     try {
       await deleteTransaction(id);
     } finally {
-      setDeletingId(null);
+      setState(prev => ({ ...prev, deletingId: null }));
     }
   };
 
@@ -54,7 +58,7 @@ const TransactionList = ({ onEdit }: { onEdit: (t: Transaction) => void }) => {
               type="text"
               placeholder="Search..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => setState(prev => ({ ...prev, search: e.target.value }))}
               className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 w-full text-sm sm:text-base"
             />
           </div>
@@ -63,7 +67,7 @@ const TransactionList = ({ onEdit }: { onEdit: (t: Transaction) => void }) => {
             {(['all', 'income', 'expense'] as const).map((f) => (
               <button
                 key={f}
-                onClick={() => setFilter(f)}
+                onClick={() => setState(prev => ({ ...prev, filter: f }))}
                 className={`flex-1 min-w-[70px] px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
                   filter === f 
                     ? 'bg-white text-blue-600 shadow-sm' 

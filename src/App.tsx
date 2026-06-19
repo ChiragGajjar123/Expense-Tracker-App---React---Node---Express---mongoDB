@@ -32,18 +32,28 @@ function App() {
       clearData();
     }
   }, [isAuthenticated, fetchData, clearData]);
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [state, setState] = useState({
+    activeTab: 'dashboard',
+    isFormOpen: false,
+    editingTransaction: null as Transaction | null
+  });
+
+  const { activeTab, isFormOpen, editingTransaction } = state;
 
   const handleEdit = (transaction: Transaction) => {
-    setEditingTransaction(transaction);
-    setIsFormOpen(true);
+    setState(prev => ({
+      ...prev,
+      editingTransaction: transaction,
+      isFormOpen: true
+    }));
   };
 
   const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setEditingTransaction(null);
+    setState(prev => ({
+      ...prev,
+      isFormOpen: false,
+      editingTransaction: null
+    }));
   };
 
   // Loading spinner while checking auth
@@ -78,8 +88,8 @@ function App() {
   return (
     <Layout
       activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      onAddClick={() => setIsFormOpen(true)}
+      setActiveTab={(tab) => setState(prev => ({ ...prev, activeTab: tab }))}
+      onAddClick={() => setState(prev => ({ ...prev, isFormOpen: true }))}
     >
       {activeTab === 'dashboard' && <Dashboard />}
       {activeTab === 'transactions' && <TransactionList onEdit={handleEdit} />}

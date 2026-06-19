@@ -12,22 +12,15 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
   const categories = useAppStore((state) => state.categories);
   const addTransaction = useAppStore((state) => state.addTransaction);
   const updateTransaction = useAppStore((state) => state.updateTransaction);
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const categoryRef = useRef<HTMLDivElement>(null);
-  
-  const [formData, setFormData] = useState(() => {
-    if (editingTransaction) {
-      return {
-        title: editingTransaction.title,
-        amount: editingTransaction.amount.toString(),
-        type: editingTransaction.type,
-        categoryId: editingTransaction.categoryId,
-        date: editingTransaction.date,
-        note: editingTransaction.note || ''
-      };
-    }
-    return {
+  const [state, setState] = useState(() => {
+    const initialFormData = editingTransaction ? {
+      title: editingTransaction.title,
+      amount: editingTransaction.amount.toString(),
+      type: editingTransaction.type,
+      categoryId: editingTransaction.categoryId,
+      date: editingTransaction.date,
+      note: editingTransaction.note || ''
+    } : {
       title: '',
       amount: '',
       type: 'expense' as 'income' | 'expense',
@@ -35,12 +28,28 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
       date: new Date().toISOString().split('T')[0],
       note: ''
     };
+
+    return {
+      isCategoryOpen: false,
+      isSubmitting: false,
+      formData: initialFormData
+    };
   });
+
+  const { isCategoryOpen, isSubmitting, formData } = state;
+  const categoryRef = useRef<HTMLDivElement>(null);
+
+  const updateFormData = (fields: Partial<typeof formData>) => {
+    setState(prev => ({
+      ...prev,
+      formData: { ...prev.formData, ...fields }
+    }));
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (categoryRef.current && !categoryRef.current.contains(event.target as Node)) {
-        setIsCategoryOpen(false);
+        setState(prev => ({ ...prev, isCategoryOpen: false }));
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -54,7 +63,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
       amount: parseFloat(formData.amount),
     };
 
-    setIsSubmitting(true);
+    setState(prev => ({ ...prev, isSubmitting: true }));
     try {
       if (editingTransaction) {
         await updateTransaction({ ...data, id: editingTransaction.id });
@@ -63,7 +72,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
       }
       onClose();
     } finally {
-      setIsSubmitting(false);
+      setState(prev => ({ ...prev, isSubmitting: false }));
     }
   };
 
@@ -89,7 +98,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
             <div className="flex bg-gray-100 p-1 rounded-2xl">
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, type: 'expense', categoryId: '' })}
+                onClick={() => updateFormData({ type: 'expense', categoryId: '' })}
                 className={`flex-1 py-2.5 sm:py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                   formData.type === 'expense' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500'
                 }`}
@@ -98,7 +107,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
               </button>
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, type: 'income', categoryId: '' })}
+                onClick={() => updateFormData({ type: 'income', categoryId: '' })}
                 className={`flex-1 py-2.5 sm:py-3 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                   formData.type === 'income' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500'
                 }`}
@@ -118,7 +127,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                     step="0.01"
                     placeholder="0.00"
                     value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    onChange={(e) => updateFormData({ amount: e.target.value })}
                     className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg font-bold"
                   />
                 </div>
@@ -133,7 +142,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                     type="text"
                     placeholder="What was this for?"
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    onChange={(e) => updateFormData({ title: e.target.value })}
                     className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm sm:text-base"
                   />
                 </div>
@@ -145,7 +154,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                   <div className="relative" ref={categoryRef}>
                     <button
                       type="button"
-                      onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                      onClick={() => setState(prev => ({ ...prev, isCategoryOpen: !prev.isCategoryOpen }))}
                       className="w-full pl-11 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-left flex items-center justify-between cursor-pointer"
                     >
                       <div className="flex items-center gap-2 overflow-hidden">
@@ -165,10 +174,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                           <button
                             key={cat.id}
                             type="button"
-                            onClick={() => {
-                              setFormData({ ...formData, categoryId: cat.id });
-                              setIsCategoryOpen(false);
-                            }}
+                            onClick={() => setState(prev => ({ ...prev, isCategoryOpen: false, formData: { ...prev.formData, categoryId: cat.id } }))}
                             className="w-full px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 transition-colors cursor-pointer"
                           >
                             <div 
@@ -193,7 +199,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                       required
                       type="date"
                       value={formData.date}
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      onChange={(e) => updateFormData({ date: e.target.value })}
                       className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer text-sm"
                     />
                   </div>
@@ -205,7 +211,7 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
                 <textarea
                   placeholder="Add more details..."
                   value={formData.note}
-                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                  onChange={(e) => updateFormData({ note: e.target.value })}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all h-20 sm:h-24 resize-none text-sm"
                 />
               </div>

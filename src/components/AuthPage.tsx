@@ -11,17 +11,30 @@ const AuthPage = () => {
   const register = useAuthStore((state) => state.register);
   const forgotPassword = useAuthStore((state) => state.forgotPassword);
   const resetPassword = useAuthStore((state) => state.resetPassword);
-  const [isLogin, setIsLogin] = useState(true);
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [resetToken, setResetToken] = useState<string | null>(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('resetToken');
+  const [state, setState] = useState({
+    isLogin: true,
+    isForgotPassword: false,
+    resetToken: (() => {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('resetToken');
+    })(),
+    showPassword: false,
+    showConfirmPassword: false,
+    isSubmitting: false,
+    error: '',
+    success: ''
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+
+  const {
+    isLogin,
+    isForgotPassword,
+    resetToken,
+    showPassword,
+    showConfirmPassword,
+    isSubmitting,
+    error,
+    success
+  } = state;
 
   const [formData, setFormData] = useState({
     name: '',
@@ -32,89 +45,84 @@ const AuthPage = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError('');
-    setSuccess('');
+    setState(prev => ({ ...prev, error: '', success: '' }));
   };
 
   const switchMode = () => {
-    setIsLogin(!isLogin);
-    setError('');
-    setSuccess('');
+    setState(prev => ({
+      ...prev,
+      isLogin: !prev.isLogin,
+      error: '',
+      success: '',
+      showPassword: false,
+      showConfirmPassword: false
+    }));
     setFormData({ name: '', email: '', password: '', confirmPassword: '' });
-    setShowPassword(false);
-    setShowConfirmPassword(false);
   };
 
   const clearResetUrl = () => {
     const url = new URL(window.location.href);
     url.searchParams.delete('resetToken');
     window.history.replaceState({}, document.title, url.pathname);
-    setResetToken(null);
+    setState(prev => ({ ...prev, resetToken: null }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    setIsSubmitting(true);
+    setState(prev => ({ ...prev, error: '', success: '', isSubmitting: true }));
 
     try {
       if (resetToken) {
         if (formData.password !== formData.confirmPassword) {
-          setError('Passwords do not match.');
-          setIsSubmitting(false);
+          setState(prev => ({ ...prev, error: 'Passwords do not match.', isSubmitting: false }));
           return;
         }
         if (formData.password.length < 8) {
-          setError('Password must be at least 8 characters.');
-          setIsSubmitting(false);
+          setState(prev => ({ ...prev, error: 'Password must be at least 8 characters.', isSubmitting: false }));
           return;
         }
         const result = await resetPassword(resetToken, formData.password);
         if (result.success) {
-          setSuccess('Password reset successfully. Logging you in...');
+          setState(prev => ({ ...prev, success: 'Password reset successfully. Logging you in...' }));
           setTimeout(() => {
             clearResetUrl();
           }, 1500);
         } else {
-          setError(result.message || 'Failed to reset password.');
+          setState(prev => ({ ...prev, error: result.message || 'Failed to reset password.' }));
         }
       } else if (isForgotPassword) {
         const result = await forgotPassword(formData.email);
         if (result.success) {
-          setSuccess(result.message || 'Reset link sent to your email.');
+          setState(prev => ({ ...prev, success: result.message || 'Reset link sent to your email.' }));
         } else {
-          setError(result.message || 'Failed to send reset link.');
+          setState(prev => ({ ...prev, error: result.message || 'Failed to send reset link.' }));
         }
       } else {
         if (!isLogin && formData.password !== formData.confirmPassword) {
-          setError('Passwords do not match.');
-          setIsSubmitting(false);
+          setState(prev => ({ ...prev, error: 'Passwords do not match.', isSubmitting: false }));
           return;
         }
         if (!isLogin && formData.password.length < 8) {
-          setError('Password must be at least 8 characters.');
-          setIsSubmitting(false);
+          setState(prev => ({ ...prev, error: 'Password must be at least 8 characters.', isSubmitting: false }));
           return;
         }
 
         if (isLogin) {
           const result = await login(formData.email, formData.password);
           if (!result.success) {
-            setError(result.message || 'Login failed.');
+            setState(prev => ({ ...prev, error: result.message || 'Login failed.' }));
           }
         } else {
           const result = await register(formData.name, formData.email, formData.password);
           if (!result.success) {
-            setError(result.message || 'Registration failed.');
+            setState(prev => ({ ...prev, error: result.message || 'Registration failed.' }));
           }
         }
       }
     } catch {
-      setError('An unexpected error occurred.');
+      setState(prev => ({ ...prev, error: 'An unexpected error occurred.' }));
     } finally {
-      setIsSubmitting(false);
+      setState(prev => ({ ...prev, isSubmitting: false }));
     }
   };
 
@@ -260,7 +268,7 @@ const AuthPage = () => {
                     {isLogin && !isForgotPassword && !resetToken && (
                       <button
                         type="button"
-                        onClick={() => { setIsForgotPassword(true); setError(''); setSuccess(''); }}
+                        onClick={() => setState(prev => ({ ...prev, isForgotPassword: true, error: '', success: '' }))}
                         className="text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer font-medium"
                       >
                         Forgot Password?
@@ -281,7 +289,7 @@ const AuthPage = () => {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={() => setState(prev => ({ ...prev, showPassword: !prev.showPassword }))}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300/30 hover:text-blue-300/60 transition-colors cursor-pointer"
                       tabIndex={-1}
                     >
@@ -355,7 +363,7 @@ const AuthPage = () => {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      onClick={() => setState(prev => ({ ...prev, showConfirmPassword: !prev.showConfirmPassword }))}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-300/30 hover:text-blue-300/60 transition-colors cursor-pointer"
                       tabIndex={-1}
                     >
@@ -411,10 +419,8 @@ const AuthPage = () => {
               {resetToken || isForgotPassword ? (
                 <button
                   onClick={() => {
-                    setIsForgotPassword(false);
                     clearResetUrl();
-                    setError('');
-                    setSuccess('');
+                    setState(prev => ({ ...prev, isForgotPassword: false, error: '', success: '' }));
                     setFormData({ name: '', email: '', password: '', confirmPassword: '' });
                   }}
                   className="text-blue-400 hover:text-blue-300 font-semibold text-sm transition-colors cursor-pointer"
