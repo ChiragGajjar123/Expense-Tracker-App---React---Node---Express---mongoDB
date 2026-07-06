@@ -2,7 +2,26 @@ import { create } from 'zustand';
 import type { Transaction, BudgetInfo, Category } from '../appTypes';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 
-const API_URL = '/api';
+const runGraphQL = async (query: string, variables?: Record<string, any>) => {
+  try {
+    const res = await fetch('/api/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ query, variables })
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      return { ok: false, message: json.errors?.[0]?.message || 'Network error' };
+    }
+    if (json.errors && json.errors.length > 0) {
+      return { ok: false, message: json.errors[0].message };
+    }
+    return { ok: true, data: json.data };
+  } catch (err: any) {
+    return { ok: false, message: err.message || 'Network error' };
+  }
+};
 
 interface AppState {
   transactions: Transaction[];
@@ -17,10 +36,6 @@ interface AppState {
   clearData: () => void;
 }
 
-const authHeaders = (): HeadersInit => ({
-  'Content-Type': 'application/json'
-});
-
 export const useAppStore = create<AppState>((set) => ({
   transactions: [],
   budgets: [],
@@ -30,14 +45,33 @@ export const useAppStore = create<AppState>((set) => ({
   fetchData: async () => {
     set({ isLoadingData: true });
     try {
-      const [transRes, budgetRes] = await Promise.all([
-        fetch(`${API_URL}/transactions`, { headers: authHeaders(), credentials: 'include' }),
-        fetch(`${API_URL}/budgets`, { headers: authHeaders(), credentials: 'include' })
-      ]);
-      if (transRes.ok && budgetRes.ok) {
-        const transData = await transRes.json();
-        const budgetData = await budgetRes.json();
-        set({ transactions: transData, budgets: budgetData });
+      const query = `
+        query FetchData {
+          transactions {
+            id
+            title
+            amount
+            type
+            categoryId
+            date
+            note
+          }
+          budgets {
+            id
+            categoryId
+            amount
+            period
+          }
+        }
+      `;
+      const res = await runGraphQL(query);
+      if (res.ok && res.data) {
+        set({
+          transactions: res.data.transactions,
+          budgets: res.data.budgets
+        });
+      } else {
+        console.error('Error fetching data:', res.message);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -48,14 +82,26 @@ export const useAppStore = create<AppState>((set) => ({
 
   addTransaction: async (newTransaction) => {
     try {
-      const res = await fetch(`${API_URL}/transactions`, {
-        method: 'POST',
-        headers: authHeaders(),
-        credentials: 'include',
-        body: JSON.stringify(newTransaction)
-      });
-      const data = await res.json();
-      set((state) => ({ transactions: [data, ...state.transactions] }));
+      const query = `
+        mutation AddTransaction($title: String!, $amount: Float!, $type: String!, $categoryId: String!, $date: String!, $note: String) {
+          addTransaction(title: $title, amount: $amount, type: $type, categoryId: $categoryId, date: $date, note: $note) {
+            id
+            title
+            amount
+            type
+            categoryId
+            date
+            note
+          }
+        }
+      `;
+      const res = await runGraphQL(query, newTransaction);
+      if (res.ok && res.data?.addTransaction) {
+        const data = res.data.addTransaction;
+        set((state) => ({ transactions: [data, ...state.transactions] }));
+      } else {
+        console.error('Error adding transaction:', res.message);
+      }
     } catch (err) {
       console.error('Error adding transaction:', err);
     }
@@ -63,16 +109,28 @@ export const useAppStore = create<AppState>((set) => ({
 
   updateTransaction: async (updatedTransaction) => {
     try {
-      const res = await fetch(`${API_URL}/transactions/${updatedTransaction.id}`, {
-        method: 'PUT',
-        headers: authHeaders(),
-        credentials: 'include',
-        body: JSON.stringify(updatedTransaction)
-      });
-      const data = await res.json();
-      set((state) => ({
-        transactions: state.transactions.map((t) => (t.id === data.id ? data : t))
-      }));
+      const query = `
+        mutation UpdateTransaction($id: ID!, $title: String, $amount: Float, $type: String, $categoryId: String, $date: String, $note: String) {
+          updateTransaction(id: $id, title: $title, amount: $amount, type: $type, categoryId: $categoryId, date: $date, note: $note) {
+            id
+            title
+            amount
+            type
+            categoryId
+            date
+            note
+          }
+        }
+      `;
+      const res = await runGraphQL(query, updatedTransaction);
+      if (res.ok && res.data?.updateTransaction) {
+        const data = res.data.updateTransaction;
+        set((state) => ({
+          transactions: state.transactions.map((t) => (t.id === data.id ? data : t))
+        }));
+      } else {
+        console.error('Error updating transaction:', res.message);
+      }
     } catch (err) {
       console.error('Error updating transaction:', err);
     }
@@ -80,14 +138,22 @@ export const useAppStore = create<AppState>((set) => ({
 
   deleteTransaction: async (id) => {
     try {
-      await fetch(`${API_URL}/transactions/${id}`, {
-        method: 'DELETE',
-        headers: authHeaders(),
-        credentials: 'include'
-      });
-      set((state) => ({
-        transactions: state.transactions.filter((t) => t.id !== id)
-      }));
+      const query = `
+        mutation DeleteTransaction($id: ID!) {
+          deleteTransaction(id: $id) {
+            success
+            message
+          }
+        }
+      `;
+      const res = await runGraphQL(query, { id });
+      if (res.ok && res.data?.deleteTransaction?.success) {
+        set((state) => ({
+          transactions: state.transactions.filter((t) => t.id !== id)
+        }));
+      } else {
+        console.error('Error deleting transaction:', res.message);
+      }
     } catch (err) {
       console.error('Error deleting transaction:', err);
     }
@@ -95,25 +161,37 @@ export const useAppStore = create<AppState>((set) => ({
 
   updateBudget: async (newBudget) => {
     try {
-      const res = await fetch(`${API_URL}/budgets`, {
-        method: 'POST',
-        headers: authHeaders(),
-        credentials: 'include',
-        body: JSON.stringify(newBudget)
-      });
-      const data = await res.json();
-      set((state) => {
-        const exists = state.budgets.find((b) => b.categoryId === data.categoryId);
-        if (exists) {
-          return {
-            budgets: state.budgets.map((b) => (b.categoryId === data.categoryId ? data : b))
-          };
-        } else {
-          return {
-            budgets: [...state.budgets, data]
-          };
+      const query = `
+        mutation UpdateBudget($categoryId: String!, $amount: Float!) {
+          updateBudget(categoryId: $categoryId, amount: $amount) {
+            id
+            categoryId
+            amount
+            period
+          }
         }
+      `;
+      const res = await runGraphQL(query, {
+        categoryId: newBudget.categoryId,
+        amount: newBudget.amount
       });
+      if (res.ok && res.data?.updateBudget) {
+        const data = res.data.updateBudget;
+        set((state) => {
+          const exists = state.budgets.find((b) => b.categoryId === data.categoryId);
+          if (exists) {
+            return {
+              budgets: state.budgets.map((b) => (b.categoryId === data.categoryId ? data : b))
+            };
+          } else {
+            return {
+              budgets: [...state.budgets, data]
+            };
+          }
+        });
+      } else {
+        console.error('Error updating budget:', res.message);
+      }
     } catch (err) {
       console.error('Error updating budget:', err);
     }

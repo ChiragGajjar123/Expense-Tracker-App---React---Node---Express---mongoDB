@@ -5,12 +5,13 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import Transaction from './models/Transaction.js';
-import Budget from './models/Budget.js';
-import authRoutes from './routes/auth.js';
-import auth from './middleware/auth.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { ApolloServer } from '@apollo/server';
+import { expressMiddleware } from '@apollo/server/express4';
+import { typeDefs } from './graphql/typeDefs.js';
+import { resolvers } from './graphql/resolvers.js';
+import { createContext } from './graphql/context.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,8 +22,10 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Security headers
-app.use(helmet());
+// Security headers - disable CSP in development to allow Apollo Sandbox
+app.use(helmet({
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+}));
 
 // CORS config
 app.use(cors({
@@ -33,19 +36,16 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 
-// Rate limiters for authentication endpoints
-const authLimiter = rateLimit({
+// General rate limiter for GraphQL endpoint
+const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per 15 minutes
-  message: { message: 'Too many authentication attempts. Please try again after 15 minutes.' },
+  max: 500, // Limit each IP to 500 requests per 15 minutes
+  message: { message: 'Too many requests. Please try again after 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/password', authLimiter);
-app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/graphql', apiLimiter);
 
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
@@ -78,84 +78,20 @@ app.use(async (req, res, next) => {
 });
 // -------------------------------------
 
-// Auth Routes (public)
-app.use('/api/auth', authRoutes);
-
-// ========== Protected Routes (require auth) ==========
-
-// Transaction Routes
-app.get('/api/transactions', auth, async (req, res) => {
-  try {
-    const transactions = await Transaction.find({ userId: req.userId }).sort({ date: -1 });
-    res.json(transactions);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+// Initialize and start Apollo Server
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
 });
 
-app.post('/api/transactions', auth, async (req, res) => {
-  const transaction = new Transaction({ ...req.body, userId: req.userId });
-  try {
-    const newTransaction = await transaction.save();
-    res.status(201).json(newTransaction);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
+await server.start();
 
-app.put('/api/transactions/:id', auth, async (req, res) => {
-  try {
-    const { id, ...updateData } = req.body;
-    const updatedTransaction = await Transaction.findOneAndUpdate(
-      { _id: req.params.id, userId: req.userId },
-      updateData,
-      { new: true }
-    );
-    if (!updatedTransaction) {
-      return res.status(404).json({ message: 'Transaction not found' });
-    }
-    res.json(updatedTransaction);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
-
-app.delete('/api/transactions/:id', auth, async (req, res) => {
-  try {
-    const result = await Transaction.findOneAndDelete({ _id: req.params.id, userId: req.userId });
-    if (!result) {
-      return res.status(404).json({ message: 'Transaction not found' });
-    }
-    res.json({ message: 'Transaction deleted' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Budget Routes
-app.get('/api/budgets', auth, async (req, res) => {
-  try {
-    const budgets = await Budget.find({ userId: req.userId });
-    res.json(budgets);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-app.post('/api/budgets', auth, async (req, res) => {
-  try {
-    const { categoryId, amount } = req.body;
-    const budget = await Budget.findOneAndUpdate(
-      { categoryId, userId: req.userId },
-      { $set: { amount } },
-      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, runValidators: true }
-    );
-    res.json(budget);
-  } catch (err) {
-    console.error("Budget update error:", err);
-    res.status(400).json({ message: err.message });
-  }
-});
+app.use(
+  '/api/graphql',
+  expressMiddleware(server, {
+    context: createContext,
+  })
+);
 
 // For Vercel serverless deployment
 if (process.env.NODE_ENV !== 'production') {

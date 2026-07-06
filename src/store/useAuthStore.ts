@@ -23,7 +23,26 @@ interface AuthState {
   resetPassword: (token: string, newPassword: string) => Promise<{ success: boolean; message?: string }>;
 }
 
-const API_URL = '/api/auth';
+const runGraphQL = async (query: string, variables?: Record<string, any>) => {
+  try {
+    const res = await fetch('/api/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ query, variables })
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      return { ok: false, message: json.errors?.[0]?.message || 'Network error' };
+    }
+    if (json.errors && json.errors.length > 0) {
+      return { ok: false, message: json.errors[0].message };
+    }
+    return { ok: true, data: json.data };
+  } catch (err: any) {
+    return { ok: false, message: err.message || 'Network error. Please try again.' };
+  }
+};
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
@@ -31,12 +50,21 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   verifySession: async () => {
     try {
-      const res = await fetch(`${API_URL}/me`, {
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const userData = await res.json();
-        set({ user: userData });
+      const query = `
+        query GetMe {
+          me {
+            id
+            name
+            email
+            avatar
+            currency
+            createdAt
+          }
+        }
+      `;
+      const res = await runGraphQL(query);
+      if (res.ok && res.data?.me) {
+        set({ user: res.data.me });
       } else {
         set({ user: null });
       }
@@ -48,49 +76,64 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   register: async (name, email, password) => {
-    try {
-      const res = await fetch(`${API_URL}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name, email, password })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        set({ user: data.user });
-        return { success: true };
+    const query = `
+      mutation Register($name: String!, $email: String!, $password: String!) {
+        register(name: $name, email: $email, password: $password) {
+          success
+          message
+          user {
+            id
+            name
+            email
+            avatar
+            currency
+          }
+        }
       }
-      return { success: false, message: data.message };
-    } catch {
-      return { success: false, message: 'Network error. Please try again.' };
+    `;
+    const res = await runGraphQL(query, { name, email, password });
+    if (res.ok && res.data?.register?.success) {
+      set({ user: res.data.register.user });
+      return { success: true };
     }
+    return { success: false, message: res.data?.register?.message || res.message };
   },
 
   login: async (email, password) => {
-    try {
-      const res = await fetch(`${API_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        set({ user: data.user });
-        return { success: true };
+    const query = `
+      mutation Login($email: String!, $password: String!) {
+        login(email: $email, password: $password) {
+          success
+          message
+          user {
+            id
+            name
+            email
+            avatar
+            currency
+          }
+        }
       }
-      return { success: false, message: data.message };
-    } catch {
-      return { success: false, message: 'Network error. Please try again.' };
+    `;
+    const res = await runGraphQL(query, { email, password });
+    if (res.ok && res.data?.login?.success) {
+      set({ user: res.data.login.user });
+      return { success: true };
     }
+    return { success: false, message: res.data?.login?.message || res.message };
   },
 
   logout: async () => {
     try {
-      await fetch(`${API_URL}/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
+      const query = `
+        mutation Logout {
+          logout {
+            success
+            message
+          }
+        }
+      `;
+      await runGraphQL(query);
     } catch (err) {
       console.error('Logout request failed:', err);
     } finally {
@@ -99,98 +142,95 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   updateProfile: async (profileData) => {
-    try {
-      const res = await fetch(`${API_URL}/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify(profileData)
-      });
-      const data = await res.json();
-      if (res.ok) {
-        set({ user: data });
-        return { success: true };
+    const query = `
+      mutation UpdateProfile($name: String, $currency: String) {
+        updateProfile(name: $name, currency: $currency) {
+          id
+          name
+          email
+          avatar
+          currency
+        }
       }
-      return { success: false, message: data.message };
-    } catch {
-      return { success: false, message: 'Network error. Please try again.' };
+    `;
+    const res = await runGraphQL(query, profileData);
+    if (res.ok && res.data?.updateProfile) {
+      set({ user: res.data.updateProfile });
+      return { success: true };
     }
+    return { success: false, message: res.message };
   },
 
   changePassword: async (currentPassword, newPassword) => {
-    try {
-      const res = await fetch(`${API_URL}/password`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ currentPassword, newPassword })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        return { success: true, message: data.message };
+    const query = `
+      mutation ChangePassword($currentPassword: String!, $newPassword: String!) {
+        changePassword(currentPassword: $currentPassword, newPassword: $newPassword) {
+          success
+          message
+        }
       }
-      return { success: false, message: data.message };
-    } catch {
-      return { success: false, message: 'Network error. Please try again.' };
+    `;
+    const res = await runGraphQL(query, { currentPassword, newPassword });
+    if (res.ok && res.data?.changePassword?.success) {
+      return { success: true, message: res.data.changePassword.message };
     }
+    return { success: false, message: res.data?.changePassword?.message || res.message };
   },
 
   deleteAccount: async (password) => {
-    try {
-      const res = await fetch(`${API_URL}/account`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        set({ user: null });
-        return { success: true, message: data.message };
+    const query = `
+      mutation DeleteAccount($password: String!) {
+        deleteAccount(password: $password) {
+          success
+          message
+        }
       }
-      return { success: false, message: data.message };
-    } catch {
-      return { success: false, message: 'Network error. Please try again.' };
+    `;
+    const res = await runGraphQL(query, { password });
+    if (res.ok && res.data?.deleteAccount?.success) {
+      set({ user: null });
+      return { success: true, message: res.data.deleteAccount.message };
     }
+    return { success: false, message: res.data?.deleteAccount?.message || res.message };
   },
 
   forgotPassword: async (email) => {
-    try {
-      const res = await fetch(`${API_URL}/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email })
-      });
-      const data = await res.json();
-      return { success: res.ok, message: data.message };
-    } catch {
-      return { success: false, message: 'Network error. Please try again.' };
+    const query = `
+      mutation ForgotPassword($email: String!) {
+        forgotPassword(email: $email) {
+          success
+          message
+        }
+      }
+    `;
+    const res = await runGraphQL(query, { email });
+    if (res.ok && res.data?.forgotPassword) {
+      return { success: res.data.forgotPassword.success, message: res.data.forgotPassword.message };
     }
+    return { success: false, message: res.message };
   },
 
   resetPassword: async (token, newPassword) => {
-    try {
-      const res = await fetch(`${API_URL}/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ token, newPassword })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        set({ user: data.user });
-        return { success: true, message: data.message };
+    const query = `
+      mutation ResetPassword($token: String!, $newPassword: String!) {
+        resetPassword(token: $token, newPassword: $newPassword) {
+          success
+          message
+          user {
+            id
+            name
+            email
+            avatar
+            currency
+          }
+        }
       }
-      return { success: false, message: data.message };
-    } catch {
-      return { success: false, message: 'Network error. Please try again.' };
+    `;
+    const res = await runGraphQL(query, { token, newPassword });
+    if (res.ok && res.data?.resetPassword?.success) {
+      set({ user: res.data.resetPassword.user });
+      return { success: true, message: res.data.resetPassword.message };
     }
+    return { success: false, message: res.data?.resetPassword?.message || res.message };
   }
 }));

@@ -58,6 +58,10 @@ const TransactionForm = ({ onClose, editingTransaction }: TransactionFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.categoryId) {
+      alert('Please select a category.');
+      return;
+    }
     const data = {
       ...formData,
       amount: parseFloat(formData.amount),

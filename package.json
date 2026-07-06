@@ -8,13 +8,14 @@
   },
   "scripts": {
     "dev:client": "vite",
-    "dev:server": "nodemon server/index.js",
+    "dev:server": "nodemon --watch server server/index.js",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@apollo/server": "^4.13.0",
     "@tailwindcss/vite": "^4.2.3",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
@@ -24,6 +25,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
+    "graphql": "^16.14.2",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.8.0",
