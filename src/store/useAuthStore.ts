@@ -26,9 +26,14 @@ interface AuthState {
 const runREST = async (url: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', body?: Record<string, any>) => {
   try {
     const baseUrl = import.meta.env.VITE_API_URL || '';
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
     const res = await fetch(`${baseUrl}${url}`, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       credentials: 'include',
       body: body ? JSON.stringify(body) : undefined
     });
@@ -52,9 +57,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (res.ok && res.data?.user) {
         set({ user: res.data.user });
       } else {
+        localStorage.removeItem('token');
         set({ user: null });
       }
     } catch {
+      localStorage.removeItem('token');
       set({ user: null });
     } finally {
       set({ isLoading: false });
@@ -64,6 +71,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (name, email, password) => {
     const res = await runREST('/api/auth/register', 'POST', { name, email, password });
     if (res.ok && res.data?.success) {
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+      }
       set({ user: res.data.user });
       return { success: true };
     }
@@ -73,6 +83,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, password) => {
     const res = await runREST('/api/auth/login', 'POST', { email, password });
     if (res.ok && res.data?.success) {
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+      }
       set({ user: res.data.user });
       return { success: true };
     }
@@ -85,6 +98,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (err) {
       console.error('Logout request failed:', err);
     } finally {
+      localStorage.removeItem('token');
       set({ user: null });
     }
   },
@@ -109,6 +123,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   deleteAccount: async (password) => {
     const res = await runREST('/api/auth/delete-account', 'POST', { password });
     if (res.ok && res.data?.success) {
+      localStorage.removeItem('token');
       set({ user: null });
       return { success: true, message: res.data.message };
     }
@@ -126,6 +141,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   resetPassword: async (token, newPassword) => {
     const res = await runREST('/api/auth/reset-password', 'POST', { token, newPassword });
     if (res.ok && res.data?.success) {
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+      }
       set({ user: res.data.user });
       return { success: true, message: res.data.message };
     }

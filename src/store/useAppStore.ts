@@ -5,9 +5,14 @@ import { DEFAULT_CATEGORIES } from '../constants/categories';
 const runREST = async (url: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', body?: Record<string, any>) => {
   try {
     const baseUrl = import.meta.env.VITE_API_URL || '';
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
     const res = await fetch(`${baseUrl}${url}`, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       credentials: 'include',
       body: body ? JSON.stringify(body) : undefined
     });
