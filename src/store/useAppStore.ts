@@ -2,22 +2,20 @@ import { create } from 'zustand';
 import type { Transaction, BudgetInfo, Category } from '../appTypes';
 import { DEFAULT_CATEGORIES } from '../constants/categories';
 
-const runGraphQL = async (query: string, variables?: Record<string, any>) => {
+const runREST = async (url: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', body?: Record<string, any>) => {
   try {
-    const res = await fetch('/api/graphql', {
-      method: 'POST',
+    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const res = await fetch(`${baseUrl}${url}`, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ query, variables })
+      body: body ? JSON.stringify(body) : undefined
     });
     const json = await res.json();
     if (!res.ok) {
-      return { ok: false, message: json.errors?.[0]?.message || 'Network error' };
+      return { ok: false, message: json.message || 'Server error' };
     }
-    if (json.errors && json.errors.length > 0) {
-      return { ok: false, message: json.errors[0].message };
-    }
-    return { ok: true, data: json.data };
+    return { ok: true, data: json };
   } catch (err: any) {
     return { ok: false, message: err.message || 'Network error' };
   }
@@ -45,34 +43,15 @@ export const useAppStore = create<AppState>((set) => ({
   fetchData: async () => {
     set({ isLoadingData: true });
     try {
-      const query = `
-        query FetchData {
-          transactions {
-            id
-            title
-            amount
-            type
-            categoryId
-            date
-            note
-          }
-          budgets {
-            id
-            categoryId
-            amount
-            period
-          }
-        }
-      `;
-      const res = await runGraphQL(query);
-      if (res.ok && res.data) {
-        set({
-          transactions: res.data.transactions,
-          budgets: res.data.budgets
-        });
-      } else {
-        console.error('Error fetching data:', res.message);
-      }
+      const [txRes, budgetRes] = await Promise.all([
+        runREST('/api/transactions', 'GET'),
+        runREST('/api/budgets', 'GET')
+      ]);
+
+      const transactions = txRes.ok ? txRes.data : [];
+      const budgets = budgetRes.ok ? budgetRes.data : [];
+
+      set({ transactions, budgets });
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -82,22 +61,9 @@ export const useAppStore = create<AppState>((set) => ({
 
   addTransaction: async (newTransaction) => {
     try {
-      const query = `
-        mutation AddTransaction($title: String!, $amount: Float!, $type: String!, $categoryId: String!, $date: String!, $note: String) {
-          addTransaction(title: $title, amount: $amount, type: $type, categoryId: $categoryId, date: $date, note: $note) {
-            id
-            title
-            amount
-            type
-            categoryId
-            date
-            note
-          }
-        }
-      `;
-      const res = await runGraphQL(query, newTransaction);
-      if (res.ok && res.data?.addTransaction) {
-        const data = res.data.addTransaction;
+      const res = await runREST('/api/transactions', 'POST', newTransaction);
+      if (res.ok && res.data) {
+        const data = res.data;
         set((state) => ({ transactions: [data, ...state.transactions] }));
       } else {
         console.error('Error adding transaction:', res.message);
@@ -109,22 +75,10 @@ export const useAppStore = create<AppState>((set) => ({
 
   updateTransaction: async (updatedTransaction) => {
     try {
-      const query = `
-        mutation UpdateTransaction($id: ID!, $title: String, $amount: Float, $type: String, $categoryId: String, $date: String, $note: String) {
-          updateTransaction(id: $id, title: $title, amount: $amount, type: $type, categoryId: $categoryId, date: $date, note: $note) {
-            id
-            title
-            amount
-            type
-            categoryId
-            date
-            note
-          }
-        }
-      `;
-      const res = await runGraphQL(query, updatedTransaction);
-      if (res.ok && res.data?.updateTransaction) {
-        const data = res.data.updateTransaction;
+      const { id, ...updateData } = updatedTransaction;
+      const res = await runREST(`/api/transactions/${id}`, 'PUT', updateData);
+      if (res.ok && res.data) {
+        const data = res.data;
         set((state) => ({
           transactions: state.transactions.map((t) => (t.id === data.id ? data : t))
         }));
@@ -138,16 +92,8 @@ export const useAppStore = create<AppState>((set) => ({
 
   deleteTransaction: async (id) => {
     try {
-      const query = `
-        mutation DeleteTransaction($id: ID!) {
-          deleteTransaction(id: $id) {
-            success
-            message
-          }
-        }
-      `;
-      const res = await runGraphQL(query, { id });
-      if (res.ok && res.data?.deleteTransaction?.success) {
+      const res = await runREST(`/api/transactions/${id}`, 'DELETE');
+      if (res.ok && res.data?.success) {
         set((state) => ({
           transactions: state.transactions.filter((t) => t.id !== id)
         }));
@@ -161,22 +107,12 @@ export const useAppStore = create<AppState>((set) => ({
 
   updateBudget: async (newBudget) => {
     try {
-      const query = `
-        mutation UpdateBudget($categoryId: String!, $amount: Float!) {
-          updateBudget(categoryId: $categoryId, amount: $amount) {
-            id
-            categoryId
-            amount
-            period
-          }
-        }
-      `;
-      const res = await runGraphQL(query, {
+      const res = await runREST('/api/budgets', 'PUT', {
         categoryId: newBudget.categoryId,
         amount: newBudget.amount
       });
-      if (res.ok && res.data?.updateBudget) {
-        const data = res.data.updateBudget;
+      if (res.ok && res.data) {
+        const data = res.data;
         set((state) => {
           const exists = state.budgets.find((b) => b.categoryId === data.categoryId);
           if (exists) {
